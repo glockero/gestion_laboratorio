@@ -1,0 +1,1397 @@
+{% extends "layout.html" %}
+{% block content %}
+<style>
+    .settings-container {
+        max-width: 1120px;
+        margin: 0 auto;
+    }
+
+    /* --- ESTILOS PARA LAS PESTAÑAS (TABS) --- */
+    .nav-pills-custom {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 0.75rem;
+        padding-bottom: 0.5rem;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    .nav-pills-custom::-webkit-scrollbar { display: none; }
+
+    .nav-tab-custom {
+        white-space: nowrap;
+        border-radius: 10px;
+        padding: 0.6rem 1.2rem;
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #64748b;
+        background: #f1f5f9;
+        border: 1px solid transparent;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+    }
+
+    .nav-tab-custom:hover {
+        background: #e2e8f0;
+        color: #1e293b;
+    }
+
+    .nav-tab-custom.active {
+        background: #fff;
+        color: #0f172a;
+        border-color: #e2e8f0;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        border-bottom: 3px solid #3b82f6;
+    }
+
+    /* --- RESTO DE ESTILOS EXISTENTES --- */
+    .settings-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        overflow: hidden;
+    }
+    .settings-header {
+        background: #f8fafc;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .settings-row {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .settings-row:hover { background-color: #f8fafc; }
+    .settings-row:last-child { border-bottom: none; }
+
+    .compact-input {
+        border: 1px solid transparent;
+        background: transparent;
+        padding: 0.25rem 0.45rem;
+        font-size: 0.85rem;
+        border-radius: 4px;
+        color: #334155;
+        width: 100%;
+        transition: all 0.2s;
+    }
+    .compact-input:not([readonly]) {
+        border-color: #cbd5e1;
+        background: #fff;
+        box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+    }
+    .compact-input:focus:not([readonly]) {
+        border-color: #3b82f6;
+        outline: none;
+    }
+
+    .action-btn {
+        border: none;
+        background: transparent;
+        color: #64748b;
+        padding: 0.2rem 0.45rem;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .action-btn:hover { background: #e2e8f0; color: #1e293b; }
+    .action-btn.delete:hover { background: #fee2e2; color: #ef4444; }
+    .action-btn.save { color: #10b981; }
+    .action-btn.save:hover { background: #dcfce7; }
+
+    .editing .btn-edit,
+    .settings-row.editing .btn-edit { display: none; }
+    .editing .btn-save,
+    .settings-row.editing .btn-save { display: inline-block; }
+    .btn-save { display: none; }
+
+    .config-panel { display: none; }
+    .config-panel.active { display: block; animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* --- HERRAMIENTAS Y TARJETAS --- */
+    .status-toolbar, .room-toolbar {
+        padding: 0.85rem 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        background: #f8fafc;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    .status-add-form {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    .room-search-wrap {
+        position: relative;
+        flex: 1;
+        min-width: 200px;
+        max-width: 400px;
+    }
+    .room-search-input {
+        padding-left: 2.2rem;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+    }
+    .room-search-icon {
+        position: absolute;
+        left: 0.85rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        font-size: 0.9rem;
+    }
+    .status-cards {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.85rem;
+        padding: 1rem;
+        align-items: flex-start;
+    }
+    .status-item-card {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+        width: fit-content;
+        max-width: 100%;
+        padding: 0.75rem 0.85rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    }
+    .status-empty, .room-empty {
+        padding: 1rem;
+        color: #64748b;
+        font-size: 0.85rem;
+    }
+
+    /* --- EQUIPOS --- */
+    .equipment-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.9fr);
+        gap: 1.25rem;
+        align-items: start;
+    }
+    .equipment-columns {
+        display: grid;
+        grid-template-columns: 40px minmax(0, 1fr) 140px 120px;
+        align-items: center;
+        gap: 0.75rem;
+        width: 100%;
+    }
+    .equipment-columns.header {
+        padding: 0.6rem 1rem;
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        font-weight: 700;
+        font-size: 0.72rem;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    .equipment-item-row {
+        display: block !important;
+        padding: 0 !important;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .equipment-check-cell {
+        display: flex;
+        justify-content: center;
+    }
+    .equipment-name-input {
+        width: 100%;
+        min-width: 0;
+        font-weight: 600;
+    }
+    .equipment-price-input {
+        text-align: right;
+        font-family: 'Monaco', 'Consolas', monospace;
+        color: #059669;
+        font-weight: 600;
+        width: 100%;
+        min-width: 0;
+    }
+    .equipment-actions {
+        display: flex;
+        gap: 0.25rem;
+        justify-content: flex-end;
+    }
+    .equipment-toolbar {
+        background: #f8fafc;
+        padding: 0.85rem 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    .equipment-bulk-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.5rem 0.75rem;
+        background: #fff;
+        border: 1px dashed #cbd5e1;
+        border-radius: 6px;
+        opacity: 0.5;
+        pointer-events: none;
+        transition: all 0.2s;
+    }
+    .equipment-bulk-actions.active {
+        opacity: 1;
+        pointer-events: auto;
+        border-style: solid;
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+
+    /* --- TECNICOS --- */
+    .technician-toolbar {
+        background: #f8fafc;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    .tech-search-container {
+        position: relative;
+        flex: 1;
+        max-width: 320px;
+    }
+    .technician-columns {
+        display: grid;
+        grid-template-columns: minmax(180px, 0.8fr) 100px 100px 160px;
+        align-items: center;
+        gap: 0.75rem;
+        width: 100%;
+    }
+    .technician-row { display: contents; }
+    .technician-cell-divider {
+        border-left: 1px solid #e2e8f0;
+        padding-left: 0.75rem;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .technician-count {
+        font-family: 'Monaco', 'Consolas', monospace;
+        font-weight: 600;
+        font-size: 0.9rem;
+        text-align: center;
+    }
+    .technician-count.possession { color: #f59e0b; }
+    .technician-count.repaired { color: #10b981; }
+    .technician-actions {
+        display: flex;
+        gap: 0.25rem;
+        justify-content: flex-end;
+        border-left: 1px solid #e2e8f0;
+        padding-left: 0.75rem;
+    }
+    .technician-row-inactive { background-color: #f8fafc; opacity: 0.7; }
+    .technician-row-inactive .compact-input { font-style: italic; color: #94a3b8; }
+    .status-badge {
+        font-size: 0.65rem;
+        padding: 0.15rem 0.4rem;
+        border-radius: 4px;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin-left: 0.5rem;
+    }
+    .status-badge.active { background: #dcfce7; color: #15803d; }
+    .status-badge.inactive { background: #f1f5f9; color: #64748b; }
+
+    @media (max-width: 991px) {
+        .equipment-layout { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+        .equipment-columns, .equipment-columns.header,
+        .technician-columns, .technician-columns.header {
+            grid-template-columns: 1fr;
+            gap: 0.5rem;
+        }
+        .header { display: none !important; }
+        .technician-cell-divider { border-left: none; padding-left: 0; }
+    }
+
+    /* Ajuste especial para tabla masiva */
+    .table-responsive { scrollbar-width: thin; }
+    .table-sm td, .table-sm th { padding: 0.5rem; vertical-align: middle; }
+</style>
+
+<div class="settings-container">
+    <!-- CABECERA CON PESTAÑAS (TABS) -->
+    <div class="d-flex flex-column mb-4 pb-3 border-bottom gap-3">
+        <h3 class="fw-bold mb-0 text-dark fs-4"><i class="bi bi-gear-fill me-2 text-primary"></i>Configuración del Sistema</h3>
+        
+        <div class="nav-pills-custom mt-2">
+            <button class="nav-tab-custom active" data-target="panel-estados">
+                <i class="bi bi-tags"></i> Estados
+            </button>
+            <button class="nav-tab-custom" data-target="panel-equipos">
+                <i class="bi bi-pc-display"></i> Equipos
+            </button>
+            <button class="nav-tab-custom" data-target="panel-familias">
+                <i class="bi bi-diagram-3"></i> Familias
+            </button>
+            <button class="nav-tab-custom" data-target="panel-salas">
+                <i class="bi bi-shop"></i> Salas
+            </button>
+            <button class="nav-tab-custom" data-target="panel-tecnicos">
+                <i class="bi bi-tools"></i> Técnicos
+            </button>
+            <button class="nav-tab-custom" data-target="panel-usuarios">
+                <i class="bi bi-people-fill"></i> Usuarios
+            </button>
+            <button class="nav-tab-custom" data-target="panel-reparaciones">
+                <i class="bi bi-database-down"></i> Base Reparaciones
+            </button>
+        </div>
+    </div>
+
+    <!-- PANEL ESTADOS -->
+    <div id="panel-estados" class="config-panel active">
+        <div class="settings-card">
+            <div class="settings-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold text-dark" style="font-size: 0.95rem;">Estados disponibles (<span id="statusCounterNum">{{ catalogos['estados']|length }}</span>)</h6>
+            </div>
+
+            <div class="status-toolbar d-flex justify-content-between align-items-center gap-3">
+                <div class="room-search-wrap" style="max-width: 320px; flex: 1;">
+                    <i class="bi bi-search room-search-icon"></i>
+                    <input id="statusSearch" type="search" class="compact-input room-search-input" placeholder="Buscar estado..." autocomplete="off" style="height: 34px;">
+                </div>
+                <form method="POST" action="{{ url_for('agregar_catalogo', tipo='estados') }}" class="status-add-form m-0 d-flex gap-2">
+                    <input type="text" name="nombre" class="compact-input bg-white border" placeholder="Escribi un nuevo estado..." required style="height: 34px; min-width: 220px;">
+                    <button type="submit" class="btn btn-primary btn-sm px-3 fw-bold shadow-sm" style="height: 34px; font-size: 0.8rem; white-space: nowrap;">Añadir</button>
+                </form>
+            </div>
+
+            {% if catalogos['estados'] %}
+            <div class="status-cards" id="statusContainer">
+                {% for item in catalogos['estados'] %}
+                    <div class="status-item-card state-item-card">
+                        <form method="POST" action="{{ url_for('editar_catalogo', tipo='estados', item_id=item.id) }}" class="catalog-item-form status-item-form">
+                            <input type="text" name="nombre" class="compact-input fw-medium m-0 status-name-input" value="{{ item.nombre }}" readonly required>
+                            <button type="button" class="action-btn btn-edit" title="Editar"><i class="bi bi-pencil"></i></button>
+                            <button type="submit" class="action-btn save btn-save" title="Guardar"><i class="bi bi-check2-circle"></i></button>
+                        </form>
+                        <button type="button" class="action-btn delete" title="Eliminar" 
+                                {% if catalog_config['estados'].default and item.nombre == catalog_config['estados'].default %}disabled{% endif %}
+                                onclick="showConfirmModal('¿Eliminar estado?', 'Esta acción quitará el estado del catálogo permanentemente.', '{{ url_for('eliminar_catalogo', tipo='estados', item_id=item.id) }}', true)">
+                            <i class="bi bi-trash3"></i>
+                        </button>
+                    </div>
+                {% endfor %}
+            </div>
+            <div id="statusEmptyMessage" class="p-4 text-center text-muted d-none" style="font-size: 0.85rem;">No se encontraron estados que coincidan.</div>
+            {% else %}
+            <div class="status-empty">No hay registros cargados.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- PANEL EQUIPOS -->
+    <div id="panel-equipos" class="config-panel">
+        <div class="equipment-layout">
+            <div class="d-flex flex-column gap-3">
+                <div class="settings-card">
+                    <div class="settings-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-bold text-dark" style="font-size: 0.95rem;">Equipos (<span id="equipmentCounterNum">{{ catalogos['equipos']|length }}</span>)</h6>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-export fw-semibold" onclick="location.href='{{ url_for('exportar_equipos_csv') }}'">
+                                <i class="bi bi-download me-1"></i>Exportar
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" onclick="toggleAdjustmentPanel()">
+                                <i class="bi bi-percent me-1"></i>Ajustar Precios
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="equipment-toolbar">
+                        <div class="equipment-search-row">
+                            <div class="room-search-wrap" style="max-width: none;">
+                                <i class="bi bi-search room-search-icon"></i>
+                                <input id="equipmentSearch" type="search" class="compact-input room-search-input" placeholder="Buscar por nombre o LAB..." autocomplete="off">
+                            </div>
+                            
+                            <div id="bulkActions" class="equipment-bulk-actions">
+                                <span class="text-muted fw-medium" style="font-size: 0.75rem;"><span id="selectedCount">0</span> seleccionados</span>
+                                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size: 0.7rem;" onclick="submitBulkAction('eliminar')">
+                                    <i class="bi bi-trash3 me-1"></i>Eliminar
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="adjustmentPanel" class="equipment-adjustment-panel">
+                            <form id="formAjusteGlobal" method="POST" action="{{ url_for('ajuste_global_precios') }}" class="m-0">
+                                <div class="d-flex align-items-center gap-3 flex-wrap">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="fw-semibold text-secondary" style="font-size: 0.8rem;">Operación:</span>
+                                        <select name="operacion" class="form-select form-select-sm py-0 shadow-sm" style="width: 110px;">
+                                            <option value="aumento">Aumento</option>
+                                            <option value="descuento">Descuento</option>
+                                        </select>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="fw-semibold text-secondary" style="font-size: 0.8rem;">Tipo:</span>
+                                        <select name="tipo_ajuste" class="form-select form-select-sm py-0 shadow-sm" style="width: 110px;">
+                                            <option value="porcentaje">Porcentaje %</option>
+                                            <option value="fijo">Valor Fijo $</option>
+                                        </select>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="fw-semibold text-secondary" style="font-size: 0.8rem;">Valor:</span>
+                                        <input type="number" name="valor_ajuste" class="form-control form-control-sm py-0 shadow-sm" style="width: 100px;" placeholder="0" required min="0" step="any">
+                                    </div>
+                                    <button type="button" class="btn btn-primary btn-sm px-3 fw-bold shadow-sm" onclick="const f = document.getElementById('formAjusteGlobal'); if(f.checkValidity()){ showConfirmModal('Ajustar Precios', '¿Seguro que deseas ajustar los precios de TODOS los equipos mostrados?', function(){ f.submit(); }, false, 'Aplicar Ajuste'); } else { f.reportValidity(); }">Aplicar</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="equipment-columns header border-bottom px-3 py-2">
+                        <div class="equipment-check-cell">
+                            <input type="checkbox" class="form-check-input m-0" id="selectAllEquipos">
+                        </div>
+                        <div>DESCRIPCIÓN / MODELO</div>
+                        <div class="text-end text-primary">PRECIO ($)</div>
+                        <div class="text-end">ACCIONES</div>
+                    </div>
+
+                    <div class="settings-list" id="equipmentList" style="max-height: 520px; overflow-y: auto;">
+                        <form id="bulkActionForm" method="POST" action="{{ url_for('acciones_masivas_equipos') }}" class="d-none">
+                            <input type="hidden" name="accion" id="bulkActionInput">
+                        </form>
+
+                        {% for item in catalogos['equipos'] %}
+                        <div class="settings-row equipment-item-row">
+                            <form method="POST" action="{{ url_for('editar_catalogo', tipo='equipos', item_id=item.id) }}" class="equipment-columns px-3 py-2 m-0 catalog-item-form">
+                                <div class="equipment-check-cell">
+                                    <input type="checkbox" name="ids[]" value="{{ item.id }}" form="bulkActionForm" class="form-check-input m-0 equipment-checkbox">
+                                </div>
+                                
+                                <input type="text" name="nombre" class="compact-input equipment-name-input m-0 fw-medium" value="{{ item.nombre }}" readonly required>
+                                
+                                <input type="text" name="valor" class="compact-input equipment-price-input m-0" value="{{ format_price(item.valor) }}" readonly placeholder="$ 0">
+                                
+                                <div class="equipment-actions">
+                                    <button type="button" class="action-btn btn-edit" title="Editar"><i class="bi bi-pencil"></i></button>
+                                    <button type="submit" class="action-btn save btn-save" title="Guardar"><i class="bi bi-check2-circle"></i></button>
+                                    
+                                    <button type="button" class="action-btn delete" title="Eliminar" 
+                                            onclick="showConfirmModal('¿Eliminar equipo?', 'Esta acción borrará al equipo del catálogo permanentemente.', '{{ url_for('eliminar_catalogo', tipo='equipos', item_id=item.id) }}', true)">
+                                        <i class="bi bi-trash3"></i>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                        {% else %}
+                        <div class="p-4 text-center text-muted" style="font-size: 0.85rem;">No hay equipos registrados.</div>
+                        {% endfor %}
+                    </div>
+                    <div id="equipmentEmptyMessage" class="p-4 text-center text-muted d-none" style="font-size: 0.85rem;">No se encontraron equipos que coincidan.</div>
+                </div>
+
+                <!-- Carga Masiva CSV para Equipos -->
+                <div class="settings-card">
+                    <div class="settings-header bg-success bg-opacity-10">
+                        <h6 class="mb-0 fw-bold text-success" style="font-size: 0.85rem;"><i class="bi bi-filetype-csv me-1"></i> Carga masiva de Equipos</h6>
+                    </div>
+                    <div class="p-3 bg-white">
+                        <p class="small text-muted mb-3">Sube un archivo CSV para importar múltiples equipos a la vez. El archivo debe contener al menos dos columnas llamadas <strong>"equipo"</strong> y <strong>"precio"</strong>.</p>
+                        <form id="formCsvEquipos" method="POST" action="{{ url_for('cargar_equipos_csv') }}" enctype="multipart/form-data" class="d-flex flex-column flex-md-row gap-2 align-items-md-center m-0">
+                            <input type="file" name="archivo_csv" class="form-control form-control-sm" accept=".csv" required>
+                            <button type="button" class="btn btn-outline-success btn-sm text-nowrap fw-bold" onclick="const f = document.getElementById('formCsvEquipos'); if(f.checkValidity()){ showConfirmModal('Sincronizar Equipos', 'Esto importará los equipos y actualizará los precios. ¿Continuar?', function(){ f.submit(); }, false, 'Sí, Sincronizar'); } else { f.reportValidity(); }">Sincronizar Equipos</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-card equipment-add-card shadow-sm border-primary border-opacity-25">
+                <div class="settings-header bg-primary bg-opacity-10">
+                    <h6 class="mb-0 fw-bold text-primary" style="font-size: 0.95rem;"><i class="bi bi-plus-circle-dotted me-2"></i>Nuevo equipo</h6>
+                </div>
+                <div class="equipment-form-body p-4">
+                    <form method="POST" action="{{ url_for('agregar_catalogo', tipo='equipos') }}" class="d-flex flex-column gap-3 m-0">
+                        <div>
+                            <label class="form-label fw-semibold text-secondary small mb-1" for="nombreEquipo">Nombre de equipo</label>
+                            <input id="nombreEquipo" type="text" name="nombre_equipo" class="form-control shadow-sm" placeholder="Ej. Ruleta Interblock" required>
+                        </div>
+                        <div>
+                            <label class="form-label fw-semibold text-secondary small mb-1" for="labEquipo">LAB (Opcional)</label>
+                            <input id="labEquipo" type="text" name="lab" class="form-control text-uppercase shadow-sm" placeholder="LAB123">
+                        </div>
+                        <div>
+                            <label class="form-label fw-semibold text-secondary small mb-1" for="precioEquipo">Precio estimado ($)</label>
+                            <input id="precioEquipo" type="text" name="valor" class="form-control shadow-sm" placeholder="$ 12.000" inputmode="numeric">
+                        </div>
+                        <div class="equipment-form-actions pt-2">
+                            <button type="submit" class="btn btn-primary w-100 fw-bold shadow">Guardar equipo</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANEL SALAS -->
+    <div id="panel-salas" class="config-panel">
+        <div class="settings-card">
+            <div class="settings-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold text-dark" style="font-size: 0.95rem;">Salas (<span id="roomCounterNum">{{ catalogos['salas']|length }}</span>)</h6>
+                <div class="d-flex align-items-center gap-3">
+                    <form id="formSincronizarSalas" method="POST" action="{{ url_for('sincronizar_salas') }}" class="m-0">
+                        <button type="button" class="btn btn-link btn-sm text-decoration-none p-0 text-primary fw-semibold" style="font-size: 0.8rem;" onclick="showConfirmModal('Sincronizar Salas', 'Se escanearán todas las reparaciones existentes para agregar salas nuevas al catálogo. ¿Continuar?', function(){ document.getElementById('formSincronizarSalas').submit(); })">
+                            <i class="bi bi-arrow-repeat me-1"></i>Sincronizar
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="room-toolbar">
+                <div class="room-search-wrap">
+                    <i class="bi bi-search room-search-icon"></i>
+                    <input id="roomSearch" type="search" class="compact-input room-search-input" placeholder="Buscar sala..." autocomplete="off">
+                </div>
+                <form method="POST" action="{{ url_for('agregar_catalogo', tipo='salas') }}" class="status-add-form m-0">
+                    <input type="text" name="nombre" class="compact-input bg-white border" placeholder="Añadir nueva sala..." required>
+                    <button type="submit" class="btn btn-primary btn-sm px-3 fw-semibold" style="font-size: 0.8rem;">Añadir</button>
+                </form>
+            </div>
+
+            {% if catalogos['salas'] %}
+            <div class="status-cards" id="roomContainer">
+                {% for item in catalogos['salas'] %}
+                <div class="status-item-card room-item-card">
+                    <form method="POST" action="{{ url_for('editar_catalogo', tipo='salas', item_id=item.id) }}" class="catalog-item-form status-item-form">
+                        <input type="text" name="nombre" class="compact-input fw-medium m-0" value="{{ item.nombre }}" readonly required>
+                        <button type="button" class="action-btn btn-edit" title="Editar"><i class="bi bi-pencil"></i></button>
+                        <button type="submit" class="action-btn save btn-save" title="Guardar"><i class="bi bi-check2-circle"></i></button>
+                    </form>
+                    <button type="button" class="action-btn delete" title="Eliminar" 
+                            {% if catalog_config['salas'].default and item.nombre == catalog_config['salas'].default %}disabled{% endif %}
+                            onclick="showConfirmModal('¿Eliminar sala?', 'Esta acción borrará la sala del catálogo permanentemente.', '{{ url_for('eliminar_catalogo', tipo='salas', item_id=item.id) }}', true)">
+                        <i class="bi bi-trash3"></i>
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+            <div id="roomEmptyMessage" class="room-empty d-none">No se encontraron salas que coincidan con la búsqueda.</div>
+            {% else %}
+            <div class="room-empty">No hay salas cargadas.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- PANEL FAMILIAS -->
+    <div id="panel-familias" class="config-panel">
+        <div class="settings-card">
+            <div class="settings-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold text-dark" style="font-size: 0.95rem;">Familias de Equipo (<span id="familiaCounterNum">{{ catalogos['familias']|length }}</span>)</h6>
+            </div>
+
+            <div class="room-toolbar">
+                <div class="room-search-wrap">
+                    <i class="bi bi-search room-search-icon"></i>
+                    <input id="familiaSearch" type="search" class="compact-input room-search-input" placeholder="Buscar familia..." autocomplete="off">
+                </div>
+                <form method="POST" action="{{ url_for('agregar_catalogo', tipo='familias') }}" class="status-add-form m-0">
+                    <input type="text" name="nombre" class="compact-input bg-white border" placeholder="Añadir nueva familia..." required>
+                    <button type="submit" class="btn btn-primary btn-sm px-3 fw-semibold" style="font-size: 0.8rem;">Añadir</button>
+                </form>
+            </div>
+
+            {% if catalogos['familias'] %}
+            <div class="status-cards" id="familiaContainer">
+                {% for item in catalogos['familias'] %}
+                <div class="status-item-card room-item-card familia-item-card">
+                    <form method="POST" action="{{ url_for('editar_catalogo', tipo='familias', item_id=item.id) }}" class="catalog-item-form status-item-form">
+                        <input type="text" name="nombre" class="compact-input fw-medium m-0" value="{{ item.nombre }}" readonly required>
+                        <button type="button" class="action-btn btn-edit" title="Editar"><i class="bi bi-pencil"></i></button>
+                        <button type="submit" class="action-btn save btn-save" title="Guardar"><i class="bi bi-check2-circle"></i></button>
+                    </form>
+                    <button type="button" class="action-btn delete" title="Eliminar" 
+                            {% if catalog_config['familias'].default and item.nombre == catalog_config['familias'].default %}disabled{% endif %}
+                            onclick="showConfirmModal('¿Eliminar familia?', 'Esta acción borrará la familia del catálogo permanentemente.', '{{ url_for('eliminar_catalogo', tipo='familias', item_id=item.id) }}', true)">
+                        <i class="bi bi-trash3"></i>
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+            <div id="familiaEmptyMessage" class="room-empty d-none">No se encontraron familias que coincidan con la búsqueda.</div>
+            {% else %}
+            <div class="room-empty">No hay familias cargadas. Carga un CSV o añade una manualmente.</div>
+            {% endif %}
+        </div>
+
+        <!-- Carga Masiva CSV para Familias -->
+        <div class="settings-card mt-4">
+            <div class="settings-header bg-success bg-opacity-10">
+                <h6 class="mb-0 fw-bold text-success" style="font-size: 0.85rem;"><i class="bi bi-filetype-csv me-1"></i> Carga masiva de Familias</h6>
+            </div>
+            <div class="p-3 bg-white">
+                <p class="small text-muted mb-3">Sube un archivo CSV con una columna llamada <strong>"familia"</strong> para importar múltiples registros a la vez.</p>
+                <form id="formCsvFamilias" method="POST" action="{{ url_for('cargar_familias_csv') }}" enctype="multipart/form-data" class="d-flex flex-column flex-md-row gap-2 align-items-md-center m-0">
+                    <input type="file" name="archivo_csv" class="form-control form-control-sm" accept=".csv" required>
+                    <button type="button" class="btn btn-outline-success btn-sm text-nowrap fw-bold" onclick="const f = document.getElementById('formCsvFamilias'); if(f.checkValidity()){ showConfirmModal('Sincronizar Familias', 'Esto importará las familias del CSV. ¿Continuar?', function(){ f.submit(); }, false, 'Sí, Sincronizar'); } else { f.reportValidity(); }">Sincronizar Familias</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANEL TECNICOS -->
+    <div id="panel-tecnicos" class="config-panel">
+        <div class="technician-panel-wrap">
+            <div class="settings-card technician-card">
+                <div class="settings-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-bold text-dark" style="font-size: 0.95rem;">Técnicos (<span id="techCounterNum">{{ (catalogos['tecnicos']|selectattr('activo', 'equalto', 1)|list)|length }}</span>)</h6>
+                    <div class="form-check form-switch m-0">
+                        <input class="form-check-input" type="checkbox" id="showInactiveTechs">
+                        <label class="form-check-label small fw-semibold text-secondary" for="showInactiveTechs">Mostrar inactivos</label>
+                    </div>
+                </div>
+
+                <div class="technician-toolbar">
+                    <div class="tech-search-container">
+                        <i class="bi bi-search room-search-icon"></i>
+                        <input id="techSearch" type="search" class="compact-input room-search-input" placeholder="Buscar técnico..." autocomplete="off" style="height: 34px;">
+                    </div>
+                    <form method="POST" action="{{ url_for('agregar_catalogo', tipo='tecnicos') }}" class="tech-add-form m-0">
+                        <input type="text" name="nombre" class="compact-input bg-white border" placeholder="Nuevo técnico..." required style="height: 34px; min-width: 200px;">
+                        <button type="submit" class="btn btn-primary btn-sm px-3 fw-bold shadow-sm" style="height: 34px; font-size: 0.8rem; white-space: nowrap;">Añadir</button>
+                    </form>
+                </div>
+
+                <div class="technician-columns header px-3 py-2 bg-light border-bottom fw-bold text-secondary" style="font-size: 0.72rem; letter-spacing: 0.04em;">
+                    <div>NOMBRE</div>
+                    <div class="text-center">EN PODER</div>
+                    <div class="text-center">REPARADOS</div>
+                    <div class="text-end pe-2">ACCIONES</div>
+                </div>
+
+                <div class="settings-list" id="techList">
+                    {% for item in catalogos['tecnicos'] %}
+                    <div class="settings-row px-0 tech-item-row {% if not item.activo %}technician-row-inactive d-none{% endif %}" data-active="{{ item.activo }}">
+                        <div class="technician-columns px-3 py-2">
+                            <form id="tecnico-form-{{ item.id }}" method="POST" action="{{ url_for('editar_catalogo', tipo='tecnicos', item_id=item.id) }}" class="catalog-item-form technician-name-form m-0 d-flex align-items-center">
+                                <input type="text" name="nombre" class="compact-input fw-medium m-0 tech-name-input" value="{{ item.nombre }}" readonly required>
+                                {% if item.activo %}
+                                <span class="status-badge active">Activo</span>
+                                {% else %}
+                                <span class="status-badge inactive">Inactivo</span>
+                                {% endif %}
+                            </form>
+                            <div class="technician-count technician-cell-divider possession">{{ item.rep_en_su_poder }}</div>
+                            <div class="technician-count technician-cell-divider repaired">{{ item.reparados }}</div>
+                            <div class="technician-actions">
+                                <button type="button" class="action-btn btn-edit" title="Editar"><i class="bi bi-pencil"></i></button>
+                                <button type="submit" class="action-btn save btn-save" title="Guardar" form="tecnico-form-{{ item.id }}"><i class="bi bi-check2-circle"></i></button>
+                                
+                                {% if item.activo %}
+                                <button type="button" class="action-btn delete" title="Desactivar" 
+                                        onclick="showConfirmModal('¿Desactivar técnico?', 'El técnico dejará de aparecer en formularios pero conservará su historial.', '{{ url_for('desactivar_tecnico', item_id=item.id) }}')">
+                                    <i class="bi bi-person-x"></i>
+                                </button>
+                                {% else %}
+                                <form method="POST" action="{{ url_for('reactivar_tecnico', item_id=item.id) }}" class="m-0">
+                                    <button type="submit" class="action-btn save" title="Reactivar"><i class="bi bi-person-check"></i></button>
+                                </form>
+                                {% endif %}
+
+                                <button type="button" class="action-btn delete" title="Eliminar Permanente" 
+                                        onclick="showConfirmModal('¿Eliminar permanentemente?', 'Esta acción borrará al técnico de la base de datos de forma definitiva.', '{{ url_for('eliminar_tecnico_permanente', item_id=item.id) }}', true)">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="p-4 text-center text-muted" style="font-size: 0.85rem;">No hay técnicos registrados.</div>
+                    {% endfor %}
+                </div>
+                <div id="techEmptyMessage" class="p-4 text-center text-muted d-none" style="font-size: 0.85rem;">No se encontraron técnicos.</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- PANEL DE USUARIOS ACTUALIZADO -->
+    <div id="panel-usuarios" class="config-panel">
+        <div class="row g-4">
+            <!-- Columna Izquierda: Crear Usuario -->
+            <div class="col-md-4">
+                <div class="card settings-card h-100">
+                    <div class="settings-header">
+                        <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-person-plus text-primary me-2"></i>Crear Nuevo Usuario</h6>
+                    </div>
+                    <div class="card-body p-4">
+                        <form method="POST" action="/configuracion/usuarios/agregar">
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold text-secondary">Nombre de Usuario</label>
+                                <input type="text" name="username" class="form-control" required autocomplete="off">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold text-secondary">Contraseña</label>
+                                <input type="password" name="password" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold text-secondary">Rol de Sistema</label>
+                                <select name="rol" id="selectRolUsuario" class="form-select" onchange="toggleTecnicoSelect()">
+                                    <option value="tecnico">Técnico (Restringido)</option>
+                                    <option value="admin">Administrador (Total)</option>
+                                </select>
+                            </div>
+                            <div class="mb-4" id="divTecnicoAsignado">
+                                <label class="form-label small fw-bold text-secondary">Vincular a Técnico</label>
+                                <select name="tecnico_id" class="form-select">
+                                    <option value="">Seleccionar un técnico de la lista...</option>
+                                    {% for t in catalogos.tecnicos %}
+                                        <option value="{{ t.id }}">{{ t.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted" style="font-size: 0.7rem;">Obligatorio para que los equipos se asignen a su nombre correctamente.</small>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 fw-bold"><i class="bi bi-check2 me-1"></i>Crear Usuario</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Columna Derecha: Lista de Usuarios -->
+            <div class="col-md-8">
+                <div class="card settings-card h-100">
+                    <div class="settings-header">
+                        <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-list-check text-primary me-2"></i>Usuarios Registrados</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="px-4 py-3">Usuario</th>
+                                        <th class="py-3">Rol</th>
+                                        <th class="py-3">Técnico Vinculado</th>
+                                        <th class="text-end px-4 py-3">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for u in usuarios %}
+                                    <tr>
+                                        <td class="fw-bold px-4 py-3">{{ u.username }}</td>
+                                        <td class="py-3">
+                                            {% if u.rol == 'admin' %}
+                                                <span class="badge bg-danger"><i class="bi bi-shield-lock me-1"></i>Admin</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary"><i class="bi bi-wrench me-1"></i>Técnico</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-muted py-3">{{ u.tecnico_nombre or '--' }}</td>
+                                        <td class="text-end px-4 py-3">
+                                            <!-- Botón de Editar (Para todos) -->
+                                            <button class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#editUser{{ u.id }}" title="Editar Usuario">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+
+                                            <!-- Botón de Eliminar (Sólo para no-admins) -->
+                                            {% if u.username != 'admin' %}
+                                            <form id="formEliminarUser-{{ u.id }}" method="POST" action="/configuracion/usuarios/eliminar/{{ u.id }}" class="d-inline">
+                                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="showConfirmModal('¿Eliminar usuario?', 'El usuario {{ u.username }} ya no podrá iniciar sesión en el sistema.', function(){ document.getElementById('formEliminarUser-{{ u.id }}').submit(); }, true, 'Sí, Eliminar')" title="Eliminar Usuario">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+
+                                    <!-- Modal Editar Usuario -->
+                                    <div class="modal fade text-start" id="editUser{{ u.id }}" tabindex="-1" aria-labelledby="editUserLabel{{ u.id }}" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <form action="/configuracion/usuarios/editar/{{ u.id }}" method="POST">
+                                                <div class="modal-content border-0 shadow">
+                                                    <div class="modal-header bg-light">
+                                                        <h5 class="modal-title fw-bold text-dark" id="editUserLabel{{ u.id }}">
+                                                            <i class="bi bi-pencil-square me-2 text-primary"></i>Editar Usuario: {{ u.username }}
+                                                        </h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body p-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label small fw-bold text-secondary">Nombre de Usuario</label>
+                                                            <input type="text" name="username" class="form-control" value="{{ u.username }}" required>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label small fw-bold text-secondary">Nueva Contraseña</label>
+                                                            <input type="password" name="password" class="form-control" placeholder="Dejar en blanco para no cambiar">
+                                                        </div>
+                                                        {% if u.username != 'admin' %}
+                                                        <div class="mb-3">
+                                                            <label class="form-label small fw-bold text-secondary">Rol de Sistema</label>
+                                                            <select name="rol" id="editRolUsuario{{ u.id }}" class="form-select" onchange="toggleEditTecnicoSelect('{{ u.id }}')">
+                                                                <option value="admin" {% if u.rol == 'admin' %}selected{% endif %}>Administrador (Total)</option>
+                                                                <option value="tecnico" {% if u.rol == 'tecnico' %}selected{% endif %}>Técnico (Restringido)</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="mb-3" id="editDivTecnico{{ u.id }}" style="display: {% if u.rol == 'admin' %}none{% else %}block{% endif %};">
+                                                            <label class="form-label small fw-bold text-secondary">Vincular a Técnico</label>
+                                                            <select name="tecnico_id" class="form-select">
+                                                                <option value="">Seleccionar un técnico...</option>
+                                                                {% for t in catalogos.tecnicos %}
+                                                                    <option value="{{ t.id }}" {% if u.tecnico_nombre == t.nombre %}selected{% endif %}>{{ t.nombre }}</option>
+                                                                {% endfor %}
+                                                            </select>
+                                                        </div>
+                                                        {% else %}
+                                                            <!-- El sistema previene el cambio de rol/tecnico para el admin principal -->
+                                                            <input type="hidden" name="rol" value="admin">
+                                                            <input type="hidden" name="tecnico_id" value="">
+                                                            <div class="alert alert-warning small py-2 mb-0">El rol del administrador principal no se puede modificar.</div>
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="modal-footer bg-light">
+                                                        <button type="button" class="btn btn-secondary fw-bold" data-bs-dismiss="modal">Cancelar</button>
+                                                        <button type="submit" class="btn btn-primary fw-bold">Guardar Cambios</button>
+                                                    </div>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="4" class="text-center py-5 text-muted">No hay usuarios cargados.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANEL BASE REPARACIONES -->
+    <div id="panel-reparaciones" class="config-panel">
+        <div class="settings-card">
+            <div class="settings-header bg-primary bg-opacity-10 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <h6 class="mb-0 fw-bold text-primary"><i class="bi bi-database me-2"></i>Base Masiva de Reparaciones (<span id="repCounterNum">{{ reparaciones_raw|length }}</span>)</h6>
+                <div class="d-flex gap-2 flex-wrap">
+                    
+                    <form id="formRecalcularDias" method="POST" action="{{ url_for('recalcular_dias') }}" class="m-0">
+                        <button type="button" class="btn btn-sm btn-outline-success fw-bold bg-white" onclick="showConfirmModal('Analizar Fechas', 'Esto leerá toda la base de datos y calculará qué día de la semana (Lunes, Martes, etc.) corresponde a cada registro para que el filtro de tu Dashboard funcione a máxima velocidad. ¿Continuar?', function(){ document.getElementById('formRecalcularDias').submit(); }, false, 'Sí, Analizar')">
+                            <i class="bi bi-calendar-check me-1"></i>Analizar Fechas
+                        </button>
+                    </form>
+                    
+                    <a href="{{ url_for('exportar_reparaciones_csv') }}" class="btn btn-sm btn-outline-primary fw-bold bg-white">
+                        <i class="bi bi-download me-1"></i>Descargar CSV
+                    </a>
+                    
+                    <form id="formVaciarReparaciones" method="POST" action="{{ url_for('vaciar_reparaciones') }}" class="m-0">
+                        <button type="button" class="btn btn-sm btn-danger fw-bold" onclick="showConfirmModal('Vaciar Base', 'ATENCIÓN: Esto eliminará TODAS las reparaciones de la base de datos. ¿Estás absolutamente seguro?', function(){ document.getElementById('formVaciarReparaciones').submit(); }, true, 'Sí, Vaciar Base')">
+                            <i class="bi bi-trash3 me-1"></i>Vaciar Base
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="p-4 bg-white">
+                <div class="alert alert-info border-0 shadow-sm mb-4">
+                    <h6 class="fw-bold"><i class="bi bi-info-circle-fill me-2"></i>Formato de Sincronización</h6>
+                    <p class="small mb-2">Para subir una base nueva, el archivo CSV debe tener <strong>exactamente</strong> estas columnas en la primera fila:</p>
+                    <code class="d-block p-3 bg-light rounded text-dark border font-monospace text-center" style="font-size: 0.85rem;">
+                        fecha, sala, uid, npu, FAMILIA, equipo, urgente, tecnico, estados de reparacion, observaciones
+                    </code>
+                </div>
+                
+                <form id="formCsvReparaciones" method="POST" action="{{ url_for('cargar_csv') }}" enctype="multipart/form-data" class="d-flex flex-column flex-md-row gap-3 align-items-md-center mb-4">
+                    <input type="file" name="archivo_csv" class="form-control" accept=".csv" required>
+                    <button type="button" class="btn btn-primary text-nowrap fw-bold px-4 shadow-sm" onclick="const f = document.getElementById('formCsvReparaciones'); if(f.checkValidity()){ showConfirmModal('Sincronizar Reparaciones', '¡ATENCIÓN! Esto borrará la base actual y la reemplazará por los datos del CSV. ¿Continuar?', function(){ f.submit(); }, true, 'Sí, Sincronizar'); } else { f.reportValidity(); }">
+                        <i class="bi bi-cloud-upload me-2"></i>Sincronizar CSV
+                    </button>
+                </form>
+
+                <h6 class="fw-bold text-secondary mb-3 mt-4 border-top pt-4">Datos Actuales en Base</h6>
+                <div class="table-responsive border rounded" style="max-height: 500px; overflow-y: auto;">
+                    <table class="table table-sm table-hover mb-0" style="font-size: 0.75rem; white-space: nowrap;">
+                        <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
+                            <tr>
+                                <th>ID</th>
+                                <th>Fecha Ingreso</th>
+                                <th>Sala</th>
+                                <th>UID</th>
+                                <th>NPU</th>
+                                <th>Familia</th>
+                                <th>Equipo</th>
+                                <th>Urgente</th>
+                                <th>Técnico</th>
+                                <th>Estado</th>
+                                <th class="text-info">F. Pendiente</th>
+                                <th class="text-primary">F. En Rep.</th>
+                                <th class="text-success">F. Reparado</th>
+                                <th class="text-danger">F. Sin Rep.</th>
+                                <th>Obs.</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in reparaciones_raw %}
+                            <tr>
+                                <td class="text-muted">{{ r.id }}</td>
+                                <td>{{ r.fecha }}</td>
+                                <td>{{ r.sala }}</td>
+                                <td class="font-monospace">{{ r.uid }}</td>
+                                <td class="font-monospace text-primary fw-bold">{{ r.npu }}</td>
+                                <td>{{ r.familia }}</td>
+                                <td class="fw-bold">{{ r.equipo }}</td>
+                                <td>
+                                    {% if r.urgente == 'SI' %}
+                                        <span class="badge bg-danger">SI</span>
+                                    {% else %}
+                                        <span class="text-muted">NO</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ r.tecnico }}</td>
+                                <td><span class="badge bg-secondary">{{ r.estado }}</span></td>
+                                
+                                <td class="text-muted">{{ r.fecha_pendiente or '--' }}</td>
+                                <td class="text-muted">{{ r.fecha_en_reparacion or '--' }}</td>
+                                <td class="text-muted">{{ r.fecha_reparado or '--' }}</td>
+                                <td class="text-muted">{{ r.fecha_sin_reparacion or '--' }}</td>
+                                
+                                <td class="text-truncate text-muted" style="max-width: 150px;" title="{{ r.observaciones }}">{{ r.observaciones }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="15" class="text-center py-4 text-muted fst-italic">No hay reparaciones en la base de datos. Subí un archivo CSV para comenzar.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modal de Confirmación Genérico Modificado -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 380px;">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-body text-center p-4">
+                <div id="modalIconContainer">
+                    <i class="bi bi-exclamation-circle modal-confirm-icon" id="modalIcon"></i>
+                </div>
+                <h5 class="fw-bold text-dark mb-2" id="confirmModalLabel">Confirmar acción</h5>
+                <p class="text-muted small mb-4" id="confirmModalBody">¿Estás seguro de realizar esta operación?</p>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-light flex-grow-1 fw-bold text-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <!-- Eliminamos el <form> interno para poder usar callbacks de JS -->
+                    <button type="button" class="btn btn-primary flex-grow-1 w-100 fw-bold shadow-sm" id="confirmModalBtn">Confirmar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Error de Eliminación de Técnico -->
+<div class="modal fade" id="modalErrorTecnico" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-body text-center p-4">
+                <i class="bi bi-person-exclamation text-danger mb-3" style="font-size: 3.5rem;"></i>
+                <h5 class="fw-bold text-dark mb-2">No se puede eliminar al técnico</h5>
+                <p class="text-muted small mb-4">Este técnico tiene reparaciones asociadas en su historial. Eliminarlo permanentemente corrompería esos datos.<br><br>Te recomendamos encarecidamente <strong>desactivar</strong> al técnico. Esto lo ocultará de las nuevas asignaciones pero mantendrá intacto el historial del laboratorio.</p>
+                <div class="d-flex flex-column gap-2">
+                    <form id="formDesactivarTecnico" method="POST" class="m-0">
+                        <button type="submit" class="btn btn-warning w-100 fw-bold shadow-sm text-dark"><i class="bi bi-person-x me-2"></i>Desactivar Técnico</button>
+                    </form>
+                    <button type="button" class="btn btn-light w-100 fw-bold text-secondary" data-bs-dismiss="modal">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// --- FUNCIÓN PARA EL PANEL DE USUARIOS (Crear) ---
+window.toggleTecnicoSelect = function() {
+    var rol = document.getElementById('selectRolUsuario').value;
+    var divTecnico = document.getElementById('divTecnicoAsignado');
+    if (rol === 'admin') { 
+        divTecnico.style.display = 'none'; 
+    } else { 
+        divTecnico.style.display = 'block'; 
+    }
+};
+
+// --- FUNCIÓN PARA EL PANEL DE USUARIOS (Editar) ---
+window.toggleEditTecnicoSelect = function(userId) {
+    var rolSelect = document.getElementById('editRolUsuario' + userId);
+    var divTecnico = document.getElementById('editDivTecnico' + userId);
+    if (rolSelect && divTecnico) {
+        if (rolSelect.value === 'admin') { 
+            divTecnico.style.display = 'none'; 
+        } else { 
+            divTecnico.style.display = 'block'; 
+        }
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function () {
+    // === LÓGICA DE TABS HORIZONTALES ===
+    const tabs = document.querySelectorAll('.nav-tab-custom');
+    const panels = Array.from(document.querySelectorAll('.config-panel'));
+
+    function activarPanel(targetId) {
+        panels.forEach(panel => {
+            panel.classList.toggle('active', panel.id === targetId);
+        });
+        tabs.forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.target === targetId);
+        });
+        window.location.hash = targetId;
+    }
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            activarPanel(tab.dataset.target);
+        });
+    });
+
+    const hash = window.location.hash.replace('#', '');
+    if (hash && panels.some(panel => panel.id === hash)) {
+        activarPanel(hash);
+    }
+
+    // === MOSTRAR MODAL ERROR TÉCNICO SI APLICA ===
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('error_tecnico_en_uso')) {
+        const tecnicoId = urlParams.get('error_tecnico_en_uso');
+        const formDesactivar = document.getElementById('formDesactivarTecnico');
+        if (formDesactivar) {
+            formDesactivar.action = `/configuracion/tecnico/desactivar/${tecnicoId}`;
+        }
+        const errorModal = new bootstrap.Modal(document.getElementById('modalErrorTecnico'));
+        errorModal.show();
+        
+        // Limpiar URL
+        urlParams.delete('error_tecnico_en_uso');
+        const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '') + window.location.hash;
+        window.history.replaceState({}, document.title, newUrl);
+    }
+
+    // === SISTEMA DE MODALES INTELIGENTE ===
+    const confirmModalEl = document.getElementById('confirmModal');
+    const confirmModal = confirmModalEl ? new bootstrap.Modal(confirmModalEl) : null;
+    const confirmModalLabel = document.getElementById('confirmModalLabel');
+    const confirmModalBody = document.getElementById('confirmModalBody');
+    const confirmModalBtn = document.getElementById('confirmModalBtn');
+    let modalConfirmCallback = null;
+
+    // Nueva función que acepta una función (callback) en lugar de solo una URL
+    window.showConfirmModal = function(title, body, callbackOrUrl, isPermanent = false, btnText = null) {
+        if (!confirmModal) return;
+        confirmModalLabel.textContent = title;
+        confirmModalBody.textContent = body;
+        modalConfirmCallback = callbackOrUrl;
+        
+        if (isPermanent) {
+            confirmModalBtn.className = "btn btn-danger w-100 fw-bold shadow-sm";
+            confirmModalBtn.textContent = btnText || "Eliminar Definitivamente";
+        } else {
+            confirmModalBtn.className = "btn btn-primary w-100 fw-bold shadow-sm";
+            confirmModalBtn.textContent = btnText || "Confirmar Acción";
+        }
+        
+        confirmModal.show();
+    };
+
+    if (confirmModalBtn) {
+        confirmModalBtn.addEventListener('click', function() {
+            if (typeof modalConfirmCallback === 'string') {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = modalConfirmCallback;
+                document.body.appendChild(form);
+                form.submit();
+            } else if (typeof modalConfirmCallback === 'function') {
+                modalConfirmCallback();
+            }
+            confirmModal.hide();
+        });
+    }
+
+    // === RESTO DE LÓGICAS (EDICIÓN, BÚSQUEDAS) ===
+    document.querySelectorAll('.btn-edit').forEach(function (button) {
+        button.addEventListener('click', function () {
+            const container = this.closest('.equipment-columns') || this.closest('.technician-columns') || this.closest('.settings-row');
+            const form = this.closest('.catalog-item-form') || (container ? container.querySelector('.catalog-item-form') : null);
+            const row = this.closest('.settings-row') || this.closest('.status-item-card') || this.closest('.tech-item-row');
+
+            if (!form) return;
+
+            document.querySelectorAll('.catalog-item-form.editing').forEach(openForm => {
+                if (openForm !== form) {
+                    openForm.classList.remove('editing');
+                    openForm.querySelectorAll('.compact-input').forEach(input => input.setAttribute('readonly', 'readonly'));
+                }
+            });
+            document.querySelectorAll('.settings-row.editing, .status-item-card.editing, .tech-item-row.editing').forEach(openRow => {
+                if (openRow !== row) {
+                    openRow.classList.remove('editing');
+                }
+            });
+
+            form.classList.add('editing');
+            if (row) row.classList.add('editing');
+            
+            const inputs = form.querySelectorAll('.compact-input');
+            inputs.forEach(input => input.removeAttribute('readonly'));
+
+            if (inputs.length > 0) {
+                inputs[0].focus();
+                const currentValue = inputs[0].value;
+                inputs[0].value = '';
+                inputs[0].value = currentValue;
+            }
+        });
+    });
+
+    // Buscador de Estados
+    const statusSearch = document.getElementById('statusSearch');
+    const statusContainer = document.getElementById('statusContainer');
+    const statusEmptyMessage = document.getElementById('statusEmptyMessage');
+    const statusCounterNum = document.getElementById('statusCounterNum');
+
+    if (statusSearch && statusContainer) {
+        const statusCards = Array.from(statusContainer.querySelectorAll('.state-item-card'));
+        
+        statusSearch.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            let visibleCount = 0;
+            
+            statusCards.forEach(card => {
+                const name = card.querySelector('.status-name-input').value.toLowerCase();
+                const isMatch = name.includes(query);
+                
+                if (isMatch) {
+                    card.classList.remove('d-none');
+                    visibleCount++;
+                } else {
+                    card.classList.add('d-none');
+                }
+            });
+
+            if (statusEmptyMessage) statusEmptyMessage.classList.toggle('d-none', visibleCount > 0);
+            if (statusCounterNum) statusCounterNum.textContent = visibleCount;
+        });
+    }
+
+    // Buscador de Técnicos e Inactivos
+    const techSearch = document.getElementById('techSearch');
+    const showInactiveTechs = document.getElementById('showInactiveTechs');
+    const techRows = Array.from(document.querySelectorAll('.tech-item-row'));
+    const techEmptyMessage = document.getElementById('techEmptyMessage');
+    const techCounterNum = document.getElementById('techCounterNum');
+
+    function updateTechList() {
+        const query = (techSearch?.value || '').toLowerCase().trim();
+        const showInactive = showInactiveTechs?.checked || false;
+        let visibleCount = 0;
+        let totalInactive = techRows.filter(row => row.dataset.active !== '1').length;
+
+        techRows.forEach(row => {
+            const name = row.querySelector('.tech-name-input').value.toLowerCase();
+            const isActive = row.dataset.active === '1';
+            
+            const matchesSearch = name.includes(query);
+            const matchesStatus = showInactive || isActive;
+
+            if (matchesSearch && matchesStatus) {
+                row.classList.remove('d-none');
+                visibleCount++;
+            } else {
+                row.classList.add('d-none');
+            }
+        });
+
+        if (techEmptyMessage) {
+            if (visibleCount === 0) {
+                techEmptyMessage.classList.remove('d-none');
+                if (showInactive && totalInactive === 0 && !query) {
+                    techEmptyMessage.textContent = "No hay técnicos inactivos para mostrar.";
+                } else if (query) {
+                    techEmptyMessage.textContent = "No se encontraron técnicos que coincidan con la búsqueda.";
+                } else {
+                    techEmptyMessage.textContent = "No hay técnicos registrados.";
+                }
+            } else {
+                techEmptyMessage.classList.add('d-none');
+            }
+        }
+        
+        if (techCounterNum) techCounterNum.textContent = visibleCount;
+    }
+
+    if (techSearch) techSearch.addEventListener('input', updateTechList);
+    if (showInactiveTechs) showInactiveTechs.addEventListener('change', updateTechList);
+
+
+    // Buscador de Salas
+    const roomSearch = document.getElementById('roomSearch');
+    const roomContainer = document.getElementById('roomContainer');
+    const roomEmptyMessage = document.getElementById('roomEmptyMessage');
+    const roomCounterNum = document.getElementById('roomCounterNum');
+
+    if (roomSearch && roomContainer) {
+        const roomCards = Array.from(roomContainer.querySelectorAll('.room-item-card'));
+        
+        roomSearch.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            let visibleCount = 0;
+            
+            roomCards.forEach(card => {
+                if (card.classList.contains('familia-item-card')) return;
+                const name = card.querySelector('input[name="nombre"]').value.toLowerCase();
+                const isMatch = name.includes(query);
+                
+                if (isMatch) {
+                    card.classList.remove('d-none');
+                    visibleCount++;
+                } else {
+                    card.classList.add('d-none');
+                }
+            });
+
+            if (roomEmptyMessage) roomEmptyMessage.classList.toggle('d-none', visibleCount > 0);
+            if (roomCounterNum) { roomCounterNum.textContent = visibleCount; }
+        });
+    }
+
+    // Buscador de Familias
+    const familiaSearch = document.getElementById('familiaSearch');
+    const familiaContainer = document.getElementById('familiaContainer');
+    const familiaEmptyMessage = document.getElementById('familiaEmptyMessage');
+    const familiaCounterNum = document.getElementById('familiaCounterNum');
+
+    if (familiaSearch && familiaContainer) {
+        const familiaCards = Array.from(familiaContainer.querySelectorAll('.familia-item-card'));
+
+        familiaSearch.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            let visibleCount = 0;
+            
+            familiaCards.forEach(card => {
+                const name = card.querySelector('input[name="nombre"]').value.toLowerCase();
+                const isMatch = name.includes(query);
+                
+                if (isMatch) {
+                    card.classList.remove('d-none');
+                    visibleCount++;
+                } else {
+                    card.classList.add('d-none');
+                }
+            });
+
+            if (familiaEmptyMessage) familiaEmptyMessage.classList.toggle('d-none', visibleCount > 0);
+            if (familiaCounterNum) { familiaCounterNum.textContent = visibleCount; }
+        });
+    }
+
+    // Panel de Ajuste Global
+    window.toggleAdjustmentPanel = function() {
+        const panel = document.getElementById('adjustmentPanel');
+        panel.style.display = (panel.style.display === 'block' || panel.style.display === '') ? 'none' : 'block';
+    };
+
+    // Acciones Masivas
+    const selectAllEquipos = document.getElementById('selectAllEquipos');
+    const equipmentCheckboxes = document.querySelectorAll('.equipment-checkbox');
+    const bulkActions = document.getElementById('bulkActions');
+    const selectedCountSpan = document.getElementById('selectedCount');
+    const bulkActionForm = document.getElementById('bulkActionForm');
+    const bulkActionInput = document.getElementById('bulkActionInput');
+
+    function updateBulkActionsState() {
+        const checked = Array.from(equipmentCheckboxes).filter(cb => cb.checked);
+        if (selectedCountSpan) selectedCountSpan.textContent = checked.length;
+        if (bulkActions) bulkActions.classList.toggle('active', checked.length > 0);
+    }
+
+    if (selectAllEquipos) {
+        selectAllEquipos.addEventListener('change', function() {
+            const isVisible = (cb) => cb.closest('.equipment-item-row').style.display !== 'none';
+            equipmentCheckboxes.forEach(cb => {
+                if (isVisible(cb)) cb.checked = this.checked;
+            });
+            updateBulkActionsState();
+        });
+    }
+
+    equipmentCheckboxes.forEach(cb => {
+        cb.addEventListener('change', updateBulkActionsState);
+    });
+
+    window.submitBulkAction = function(accion) {
+        showConfirmModal('Acción Masiva', `¿Seguro que deseas aplicar la acción "${accion}" a los elementos seleccionados?`, function() {
+            bulkActionInput.value = accion;
+            bulkActionForm.submit();
+        }, true, "Aplicar Acción");
+    };
+
+    // Buscador de Equipos mejorado
+    const equipmentSearch = document.getElementById('equipmentSearch');
+    const equipmentRowsFull = Array.from(document.querySelectorAll('.equipment-item-row'));
+    const equipmentEmptyMessage = document.getElementById('equipmentEmptyMessage');
+    const equipmentCounterNum = document.getElementById('equipmentCounterNum');
+
+    if (equipmentSearch) {
+        equipmentSearch.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            let visibleCount = 0;
+
+            equipmentRowsFull.forEach(row => {
+                const nameInput = row.querySelector('.equipment-name-input');
+                if (!nameInput) return;
+                
+                const name = nameInput.value.toLowerCase();
+                const isMatch = name.includes(query);
+                
+                if (isMatch) {
+                    row.classList.remove('d-none');
+                    row.style.setProperty('display', 'block', 'important');
+                    visibleCount++;
+                } else {
+                    row.classList.add('d-none');
+                    row.style.setProperty('display', 'none', 'important');
+                }
+            });
+
+            if (equipmentEmptyMessage) equipmentEmptyMessage.classList.toggle('d-none', visibleCount > 0);
+            if (equipmentCounterNum) equipmentCounterNum.textContent = visibleCount;
+            
+            if (selectAllEquipos) selectAllEquipos.checked = false;
+            equipmentCheckboxes.forEach(cb => cb.checked = false);
+            updateBulkActionsState();
+        });
+    }
+});
+</script>
+{% endblock %}

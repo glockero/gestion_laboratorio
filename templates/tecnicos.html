@@ -1,0 +1,31 @@
+<!-- templates/tecnicos.html -->
+{% extends "layout.html" %}
+{% block content %}
+<h2 class="mb-4">Gestión de Técnicos</h2>
+<div class="row">
+    <div class="col-md-4">
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Agregar Técnico</h5>
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">Nombre</label>
+                        <input type="text" name="nombre" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Agregar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <ul class="list-group shadow-sm">
+            {% for t in tecnicos %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>{{ t.nombre }}</span>
+                <a href="/tecnico/eliminar/{{ t.id }}" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar técnico? Las reparaciones quedarán sin asignar.')">Eliminar</a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}

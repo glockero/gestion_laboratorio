@@ -1,0 +1,319 @@
+{% extends "layout.html" %}
+{% block content %}
+<style>
+    .kpi-card {
+        border-radius: 16px;
+        transition: transform 0.2s;
+        border: none;
+    }
+    .kpi-card:hover { transform: translateY(-5px); }
+    .icon-circle {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    .chart-container {
+        position: relative;
+        height: 300px;
+        width: 100%;
+    }
+    .data-table-scroll {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    .stat-label { font-size: 0.85rem; font-weight: 600; color: #64748b; text-transform: uppercase; }
+    .stat-value { font-size: 1.75rem; font-weight: 700; color: #0f172a; }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold text-primary-color mb-0"><i class="bi bi-graph-up-arrow me-2"></i>KPI Dashboard</h2>
+    <form class="d-flex gap-2" method="GET">
+        <select name="f_anio" class="form-select" onchange="this.form.submit()">
+            {% for a in anios_opt %}
+            <option value="{{ a.anio }}" {% if f_anio|string == a.anio|string %}selected{% endif %}>{{ a.anio }}</option>
+            {% endfor %}
+        </select>
+        <select name="f_sala" class="form-select" onchange="this.form.submit()">
+            <option value="">Todas las Salas</option>
+            {% for s in salas_opt %}
+            <option value="{{ s.sala }}" {% if f_sala == s.sala %}selected{% endif %}>{{ s.sala }}</option>
+            {% endfor %}
+        </select>
+    </form>
+</div>
+
+<!-- KPI Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card kpi-card shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-2">
+                    <div class="icon-circle bg-primary bg-opacity-10 text-primary"><i class="bi bi-calendar-check"></i></div>
+                    <div class="stat-label">Hoy</div>
+                </div>
+                <div class="stat-value">{{ kpis.hoy }}</div>
+                <div class="small text-muted mt-1">Reparados hoy</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card kpi-card shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-2">
+                    <div class="icon-circle bg-info bg-opacity-10 text-info"><i class="bi bi-calendar-week"></i></div>
+                    <div class="stat-label">Semana</div>
+                </div>
+                <div class="stat-value">{{ kpis.semana }}</div>
+                <div class="small text-muted mt-1">Últimos 7 días</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card kpi-card shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-2">
+                    <div class="icon-circle bg-success bg-opacity-10 text-success"><i class="bi bi-calendar-month"></i></div>
+                    <div class="stat-label">Mes</div>
+                </div>
+                <div class="stat-value">{{ kpis.mes }}</div>
+                <div class="small text-muted mt-1">Mes actual</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card kpi-card shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-2">
+                    <div class="icon-circle bg-warning bg-opacity-10 text-warning"><i class="bi bi-calendar-range"></i></div>
+                    <div class="stat-label">Año</div>
+                </div>
+                <div class="stat-value">{{ kpis.anio }}</div>
+                <div class="small text-muted mt-1">Total {{ f_anio }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Productividad Temporal -->
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title fw-bold mb-0">Evolución de Productividad ({{ f_anio }})</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="chartTemporal"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Equipos y Familias que más fallan -->
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title fw-bold mb-0">Fallas por Equipo (Top 10)</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container mb-3">
+                    <canvas id="chartEquipos"></canvas>
+                </div>
+                <div class="data-table-scroll">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr><th>Equipo</th><th class="text-end">Total</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for item in top_equipos %}
+                            <tr><td>{{ item.equipo }}</td><td class="text-end fw-bold">{{ item.total }}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title fw-bold mb-0">Fallas por Familia</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container mb-3">
+                    <canvas id="chartFamilias"></canvas>
+                </div>
+                <div class="data-table-scroll">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr><th>Familia</th><th class="text-end">Total</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for item in top_familias %}
+                            <tr><td>{{ item.familia }}</td><td class="text-end fw-bold">{{ item.total }}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Productividad por Técnico y Sala -->
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title fw-bold mb-0">Productividad por Técnico</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container mb-3">
+                    <canvas id="chartTecnicos"></canvas>
+                </div>
+                <div class="data-table-scroll">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr><th>Técnico</th><th class="text-end">Reparados</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for item in prod_tecnico %}
+                            <tr><td>{{ item.nombre }}</td><td class="text-end fw-bold text-success">{{ item.total }}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title fw-bold mb-0">Productividad por Sala</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container mb-3">
+                    <canvas id="chartSalas"></canvas>
+                </div>
+                <div class="data-table-scroll">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr><th>Sala</th><th class="text-end">Reparados</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for item in prod_sala %}
+                            <tr><td>{{ item.sala }}</td><td class="text-end fw-bold text-primary">{{ item.total }}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Paleta de colores
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#6366f1', '#14b8a6', '#f97316'];
+
+    // Chart Temporal
+    new Chart(document.getElementById('chartTemporal'), {
+        type: 'line',
+        data: {
+            labels: {{ labels_mes|tojson }},
+            datasets: [{
+                label: 'Equipos Reparados',
+                data: {{ data_mes|tojson }},
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                fill: true,
+                tension: 0.4,
+                pointRadius: 5,
+                pointBackgroundColor: '#3b82f6'
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    // Chart Equipos
+    new Chart(document.getElementById('chartEquipos'), {
+        type: 'bar',
+        data: {
+            labels: [{% for i in top_equipos %}'{{ i.equipo }}',{% endfor %}],
+            datasets: [{
+                label: 'Fallas',
+                data: [{% for i in top_equipos %}{{ i.total }},{% endfor %}],
+                backgroundColor: colors[0],
+                borderRadius: 6
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+    });
+
+    // Chart Familias
+    new Chart(document.getElementById('chartFamilias'), {
+        type: 'doughnut',
+        data: {
+            labels: [{% for i in top_familias %}'{{ i.familia }}',{% endfor %}],
+            datasets: [{
+                data: [{% for i in top_familias %}{{ i.total }},{% endfor %}],
+                backgroundColor: colors
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'right' } }
+        }
+    });
+
+    // Chart Tecnicos
+    new Chart(document.getElementById('chartTecnicos'), {
+        type: 'bar',
+        data: {
+            labels: [{% for i in prod_tecnico %}'{{ i.nombre }}',{% endfor %}],
+            datasets: [{
+                label: 'Reparados',
+                data: [{% for i in prod_tecnico %}{{ i.total }},{% endfor %}],
+                backgroundColor: colors[1],
+                borderRadius: 6
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+    });
+
+    // Chart Salas
+    new Chart(document.getElementById('chartSalas'), {
+        type: 'pie',
+        data: {
+            labels: [{% for i in prod_sala %}'{{ i.sala }}',{% endfor %}],
+            datasets: [{
+                data: [{% for i in prod_sala %}{{ i.total }},{% endfor %}],
+                backgroundColor: colors
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'right' } }
+        }
+    });
+</script>
+
+{% endblock %}

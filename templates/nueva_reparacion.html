@@ -1,0 +1,136 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-3">
+        <a href="/" class="btn btn-light rounded-circle shadow-sm" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+            <h2 class="fw-bold mb-0 text-primary-color">Nueva Reparación</h2>
+            <p class="text-muted mb-0">Ingresá un nuevo equipo al laboratorio.</p>
+        </div>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-10 col-xl-8">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="card-header bg-white border-bottom p-4">
+                <h5 class="fw-bold text-dark mb-0"><i class="bi bi-clipboard2-data text-primary me-2"></i>Datos del Ingreso</h5>
+            </div>
+            <div class="card-body p-4 p-md-5">
+                <form method="POST" action="/reparacion/nueva">
+                    
+                    <div class="row g-4 mb-4">
+                        <!-- Fecha -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-secondary small">Fecha y Hora</label>
+                            <input type="text" name="fecha" class="form-control bg-light" value="{{ hoy }}" required>
+                            <div class="form-text">Formato: DD/MM/YYYY HH:MM</div>
+                        </div>
+
+                        <!-- Prioridad -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-secondary small">Prioridad</label>
+                            <select name="urgente" class="form-select fw-bold">
+                                <option value="NO" class="text-secondary">Normal</option>
+                                <option value="SI" class="text-danger">URGENTE</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12"><hr class="text-muted opacity-25"></div>
+
+                        <!-- Sala -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-secondary small">Sala <span class="text-danger">*</span></label>
+                            <select name="sala" id="selectSala" class="form-select" placeholder="Seleccionar o escribir sala..." required>
+                                <option value=""></option>
+                                {% for s in salas %}
+                                    <option value="{{ s.nombre }}">{{ s.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Familia -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-secondary small">Familia</label>
+                            <select name="familia" id="selectFamilia" class="form-select" placeholder="Seleccionar familia...">
+                                <option value=""></option>
+                                {% for f in familias %}
+                                    <option value="{{ f.nombre }}">{{ f.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Equipo -->
+                        <div class="col-12">
+                            <label class="form-label fw-bold text-secondary small">Equipo / Modelo <span class="text-danger">*</span></label>
+                            <select name="equipo" id="selectEquipo" class="form-select" placeholder="Seleccionar o escribir equipo..." required>
+                                <option value=""></option>
+                                {% for e in equipos %}
+                                    <option value="{{ e.nombre }}">{{ e.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-12"><hr class="text-muted opacity-25"></div>
+
+                        <!-- NPU -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-secondary small">NPU</label>
+                            <input type="text" name="npu" class="form-control font-monospace" placeholder="Ej: 123456" autocomplete="off">
+                        </div>
+
+                        <!-- UID -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-secondary small">UID</label>
+                            <input type="text" name="uid" class="form-control font-monospace" placeholder="Ej: 98765" autocomplete="off">
+                        </div>
+
+                        <div class="col-12"><hr class="text-muted opacity-25"></div>
+
+                        <!-- Técnico -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-secondary small">Técnico Asignado</label>
+                            <select name="tecnico_id" class="form-select">
+                                <option value="">-- Sin Asignar (Enviar a la cola) --</option>
+                                {% for t in tecnicos %}
+                                    <option value="{{ t.id }}">{{ t.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Si asignás un técnico ahora, el estado pasará a "En Reparación" automáticamente.</div>
+                        </div>
+
+                        <!-- Observaciones -->
+                        <div class="col-12">
+                            <label class="form-label fw-bold text-secondary small">Falla Reportada / Observaciones Iniciales</label>
+                            <textarea name="observaciones" class="form-control" rows="3" placeholder="Describí la falla o el motivo del ingreso..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+                        <a href="/" class="btn btn-light fw-bold text-secondary px-4">Cancelar</a>
+                        <button type="submit" class="btn btn-primary fw-bold px-5 shadow-sm">Guardar Ingreso</button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Inicializar TomSelect para que puedas buscar escribiendo o crear nuevos al vuelo
+        const tsConfig = {
+            create: true, // Permite escribir algo que no esté en la lista y crearlo
+            sortField: { field: "text", direction: "asc" },
+            placeholder: "Buscar o escribir nuevo..."
+        };
+
+        new TomSelect("#selectSala", tsConfig);
+        new TomSelect("#selectFamilia", tsConfig);
+        new TomSelect("#selectEquipo", tsConfig);
+    });
+</script>
+{% endblock %}

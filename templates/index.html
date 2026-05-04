@@ -1,0 +1,516 @@
+{% extends "layout.html" %}
+{% block content %}
+<style>
+    /* Status Pills */
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.35em 0.8em;
+        font-size: 0.75rem;
+        font-weight: 700;
+        border-radius: 9999px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+    }
+    
+    .status-success { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .status-warning { background-color: #fef9c3; color: #854d0e; border: 1px solid #fef08a; }
+    .status-danger { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+    .status-info { background-color: #e0f2fe; color: #075985; border: 1px solid #bae6fd; }
+    .status-secondary { background-color: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+
+    /* Search & Filter Header */
+    .dashboard-header {
+        background: #fff;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        margin-bottom: 2rem;
+    }
+
+    .search-input-wrapper {
+        position: relative;
+        flex-grow: 1;
+    }
+    
+    .search-input-wrapper .bi-search {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+    }
+
+    .search-input {
+        padding-left: 2.75rem;
+        border-radius: 12px;
+        height: 3rem;
+        font-size: 1rem;
+        border: 2px solid #e2e8f0;
+        background-color: #f8fafc;
+    }
+    
+    .search-input:focus {
+        background-color: #fff;
+    }
+
+    .quick-filters select {
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        background-color: #f8fafc;
+        font-size: 0.85rem;
+        color: #475569;
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        width: 100%;
+        cursor: pointer;
+    }
+
+    /* Tabs */
+    .nav-pills-custom {
+        display: flex;
+        flex-wrap: wrap; /* Permite salto de línea si no entra */
+        gap: 0.5rem;
+        padding-bottom: 0.5rem;
+    }
+
+    .nav-tab-custom {
+        white-space: nowrap;
+        border-radius: 10px;
+        padding: 0.6rem 1.2rem;
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #64748b;
+        background: #f1f5f9;
+        border: 1px solid transparent;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .nav-tab-custom:hover {
+        background: #e2e8f0;
+        color: #1e293b;
+    }
+
+    .nav-tab-custom.active {
+        background: #fff;
+        color: #0f172a;
+        border-color: #e2e8f0;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    
+    .nav-tab-custom[data-estado="MIS_REPARACIONES"].active { border-bottom: 3px solid #0ea5e9; }
+    .nav-tab-custom[data-estado="PEND_REPARACION"].active { border-bottom: 3px solid #f59e0b; }
+    .nav-tab-custom[data-estado="EN_REPARACION"].active { border-bottom: 3px solid #3b82f6; }
+    .nav-tab-custom[data-estado="REPARADOS"].active { border-bottom: 3px solid #10b981; }
+    .nav-tab-custom[data-estado="PENDIENTES"].active { border-bottom: 3px solid #8b5cf6; }
+    .nav-tab-custom[data-estado="SIN_REPARACION"].active { border-bottom: 3px solid #ef4444; }
+    .nav-tab-custom[data-estado="TODAS"].active { border-bottom: 3px solid #64748b; }
+    .nav-tab-custom[data-estado="URGENTES"].active { border-bottom: 3px solid #dc3545 !important; background-color: #fef2f2 !important; color: #b91c1c !important; }
+
+    /* Table Styling */
+    .table-container {
+        background: #fff;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+
+    .custom-table {
+        margin-bottom: 0;
+        font-size: 0.9rem;
+    }
+
+    .custom-table thead th {
+        background-color: #f8fafc;
+        color: #475569;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+        padding: 1rem;
+        border-bottom: 2px solid #e2e8f0;
+        border-right: 1px solid #cbd5e1; /* Cuadrícula vertical en cabecera */
+        white-space: nowrap;
+    }
+
+    .custom-table thead th:last-child {
+        border-right: none;
+    }
+
+    .custom-table tbody tr {
+        transition: background-color 0.15s;
+    }
+    
+    .custom-table tbody tr:hover {
+        background-color: #f8fafc;
+    }
+
+    .custom-table td {
+        padding: 1rem;
+        vertical-align: middle;
+        border-bottom: 1px solid #cbd5e1; /* Línea horizontal más oscura */
+        border-right: 1px solid #cbd5e1;  /* Cuadrícula vertical */
+        color: #1e293b;
+    }
+
+    .custom-table td:last-child {
+        border-right: none;
+    }
+
+    .action-btn {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+    }
+    
+    .urgency-badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        background-color: #fee2e2;
+        color: #ef4444;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        width: fit-content;
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-end mb-4 flex-wrap gap-3">
+    <div>
+        <h2 class="fw-bold mb-1 text-primary-color">Seguimiento de Equipos</h2>
+    </div>
+</div>
+
+<!-- Buscador y Filtros -->
+<div class="dashboard-header">
+    <form method="GET" action="{{ url_for('index') }}" id="searchForm">
+        <input type="hidden" name="estado" value="{{ estado_actual }}">
+        
+        <div class="d-flex flex-column flex-md-row gap-3 mb-3">
+            <div class="search-input-wrapper">
+                <i class="bi bi-search"></i>
+                <input type="search" name="q" value="{{ busqueda }}" class="form-control search-input" placeholder="Buscar por UID, NPU, o palabras clave..." autocomplete="off">
+            </div>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-dark px-4">Buscar</button>
+                {% if busqueda or f_sala or f_tecnico or f_estado or f_anio or f_mes or f_dia or f_diasemana %}
+                <a href="{{ url_for('index', estado=estado_actual) }}" class="btn btn-outline-secondary d-flex align-items-center" title="Limpiar todos los filtros">
+                    <i class="bi bi-eraser-fill me-1"></i> Limpiar
+                </a>
+                {% endif %}
+                
+                <!-- NUEVO BOTÓN DE EXPORTACIÓN A EXCEL -->
+                <button type="submit" formaction="{{ url_for('exportar_excel') }}" class="btn btn-success d-flex align-items-center shadow-sm" title="Descargar vista actual en Excel">
+                    <i class="bi bi-file-earmark-excel-fill me-1"></i> Excel
+                </button>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-2">
+            <div class="col-12 col-xl-6">
+                <div class="card h-100 border-0 shadow-sm bg-light">
+                    <div class="card-body p-2 p-md-3">
+                        <span class="text-secondary fw-bold small d-block mb-2"><i class="bi bi-calendar-event me-1"></i>Filtros de Fecha</span>
+                        <div class="quick-filters row g-2">
+                            <div class="col-6 col-md-3">
+                                <select name="f_anio" class="form-select form-select-sm" onchange="this.form.submit()">
+                                    <option value="">Año (Todos)</option>
+                                    {% for a in anios_opt %}
+                                    <option value="{{ a.anio }}" {% if f_anio == a.anio %}selected{% endif %}>{{ a.anio }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <select name="f_mes" class="form-select form-select-sm" onchange="this.form.submit()">
+                                    <option value="">Mes (Todos)</option>
+                                    <option value="01" {% if f_mes == '01' %}selected{% endif %}>Enero</option>
+                                    <option value="02" {% if f_mes == '02' %}selected{% endif %}>Febrero</option>
+                                    <option value="03" {% if f_mes == '03' %}selected{% endif %}>Marzo</option>
+                                    <option value="04" {% if f_mes == '04' %}selected{% endif %}>Abril</option>
+                                    <option value="05" {% if f_mes == '05' %}selected{% endif %}>Mayo</option>
+                                    <option value="06" {% if f_mes == '06' %}selected{% endif %}>Junio</option>
+                                    <option value="07" {% if f_mes == '07' %}selected{% endif %}>Julio</option>
+                                    <option value="08" {% if f_mes == '08' %}selected{% endif %}>Agosto</option>
+                                    <option value="09" {% if f_mes == '09' %}selected{% endif %}>Septiembre</option>
+                                    <option value="10" {% if f_mes == '10' %}selected{% endif %}>Octubre</option>
+                                    <option value="11" {% if f_mes == '11' %}selected{% endif %}>Noviembre</option>
+                                    <option value="12" {% if f_mes == '12' %}selected{% endif %}>Diciembre</option>
+                                </select>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <select name="f_dia" class="form-select form-select-sm" onchange="this.form.submit()">
+                                    <option value="">Día (Todos)</option>
+                                    {% for i in range(1, 32) %}
+                                        {% set day_str = "%02d" % i %}
+                                        <option value="{{ day_str }}" {% if f_dia == day_str %}selected{% endif %}>{{ day_str }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <select name="f_diasemana" class="form-select form-select-sm" onchange="this.form.submit()">
+                                    <option value="">Día Sem. (Todos)</option>
+                                    <option value="1" {% if f_diasemana == '1' %}selected{% endif %}>Lunes</option>
+                                    <option value="2" {% if f_diasemana == '2' %}selected{% endif %}>Martes</option>
+                                    <option value="3" {% if f_diasemana == '3' %}selected{% endif %}>Miércoles</option>
+                                    <option value="4" {% if f_diasemana == '4' %}selected{% endif %}>Jueves</option>
+                                    <option value="5" {% if f_diasemana == '5' %}selected{% endif %}>Viernes</option>
+                                    <option value="6" {% if f_diasemana == '6' %}selected{% endif %}>Sábado</option>
+                                    <option value="0" {% if f_diasemana == '0' %}selected{% endif %}>Domingo</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-xl-6">
+                <div class="card h-100 border-0 shadow-sm bg-light">
+                    <div class="card-body p-2 p-md-3">
+                        <span class="text-secondary fw-bold small d-block mb-2"><i class="bi bi-funnel me-1"></i>Otros Filtros</span>
+                        <div class="quick-filters row g-2">
+                            <div class="col-md-4">
+                                <select name="f_sala" class="form-select form-select-sm" onchange="this.form.submit()">
+                                    <option value="">Todas las Salas</option>
+                                    {% for s in salas_opt %}
+                                    <option value="{{ s.sala }}" {% if f_sala == s.sala %}selected{% endif %}>{{ s.sala }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <select name="f_estado" class="form-select form-select-sm" onchange="this.form.submit()">
+                                    <option value="">Todos los Estados</option>
+                                    {% for e in estados_opt %}
+                                    <option value="{{ e.estado }}" {% if f_estado == e.estado %}selected{% endif %}>{{ e.estado }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <select name="f_tecnico" class="form-select form-select-sm" onchange="this.form.submit()">
+                                    <option value="">Todos los Técnicos</option>
+                                    <option value="SIN_ASIGNAR" {% if f_tecnico == 'SIN_ASIGNAR' %}selected{% endif %}>-- Sin Asignar --</option>
+                                    {% for t in tecnicos_opt %}
+                                    <option value="{{ t.nombre }}" {% if f_tecnico == t.nombre %}selected{% endif %}>{{ t.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </form>
+</div>
+
+<!-- Nav Tabs -->
+<div class="nav-pills-custom mb-3">
+    {% for valor_estado, etiqueta_estado in tabs_estado %}
+        <a href="{{ url_for('index', estado=valor_estado, q=busqueda, f_sala=f_sala, f_tecnico=f_tecnico, f_estado=f_estado, f_anio=f_anio, f_mes=f_mes, f_dia=f_dia, f_diasemana=f_diasemana) }}" 
+           class="nav-tab-custom {% if estado_actual == valor_estado %}active{% endif %} {% if valor_estado == 'URGENTES' %}border-danger text-danger bg-danger bg-opacity-10{% endif %}"
+           data-estado="{{ valor_estado }}">
+           
+           {% if valor_estado == 'URGENTES' %}<i class="bi bi-exclamation-triangle-fill text-danger me-1"></i>
+           {% elif valor_estado == 'MIS_REPARACIONES' %}<i class="bi bi-person-workspace text-info me-1"></i>
+           {% elif valor_estado == 'PEND_REPARACION' %}<i class="bi bi-inbox me-1"></i>
+           {% elif valor_estado == 'EN_REPARACION' %}<i class="bi bi-tools me-1"></i>
+           {% elif valor_estado == 'REPARADOS' %}<i class="bi bi-check2-circle me-1"></i>
+           {% elif valor_estado == 'SIN_REPARACION' %}<i class="bi bi-x-octagon me-1"></i>
+           {% elif valor_estado == 'PENDIENTES' %}<i class="bi bi-clock-history me-1"></i>
+           {% else %}<i class="bi bi-collection me-1"></i>{% endif %}
+           
+           {{ etiqueta_estado }}
+           
+           <span class="badge {% if valor_estado == 'URGENTES' %}bg-danger text-white{% else %}bg-light text-secondary border{% endif %} ms-1 rounded-pill">
+               {{ tab_counts.get(valor_estado, 0) }}
+           </span>
+        </a>
+    {% endfor %}
+</div>
+
+<!-- Table Data -->
+<div class="table-container">
+    <div class="table-responsive">
+        <table class="table custom-table">
+            <thead class="table-light">
+                <tr>
+                    <!-- 1 --> <th>Ingreso</th>
+                    <!-- 2 --> <th>Identificación</th>
+                    <!-- 3 --> <th>Equipo y Sala</th>
+                    <!-- 4 --> <th>Técnico</th>
+                    <!-- 5 --> <th>Estado</th>
+                    <!-- 6 CONDICIONAL -->
+                    {% if estado_actual == 'REPARADOS' %}
+                        <th class="text-success"><i class="bi bi-calendar-check me-1"></i>Fecha Rep.</th>
+                    {% endif %}
+                    <!-- 7 --> <th>Observaciones</th>
+                    <!-- 8 --> <th class="text-end">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in reparaciones %}
+                <tr>
+                    <!-- 1 --> 
+                    <td class="text-muted"><i class="bi bi-calendar3 me-1 opacity-50"></i>{{ r.fecha }}</td>
+                    
+                    <!-- 2 --> 
+                    <td>
+                        <div class="fw-bold text-dark">{{ r.uid or '--' }}</div>
+                        <div class="text-muted small d-flex align-items-center gap-1">
+                            <span>NPU: <span class="fw-bold text-primary">{{ r.npu or '--' }}</span></span>
+                            
+                            <!-- Validación dinámica de repetición -->
+                            {% if r.npu and r.npu.strip() in npus_repetidos %}
+                                <span class="badge bg-warning text-dark border border-warning px-1 py-0 rounded-1" 
+                                      title="Este equipo ya fue reparado con anterioridad" 
+                                      style="font-size: 0.65rem; cursor: help;">
+                                    (R)
+                                </span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    
+                    <!-- 3 --> 
+                    <td>
+                        <a href="{{ url_for('detalle_reparacion', id=r.id) }}" class="text-decoration-none fw-bold text-primary d-inline-block mb-1 hover-underline" title="Ver Ficha Técnica">
+                            {{ r.equipo }} <i class="bi bi-box-arrow-up-right ms-1" style="font-size: 0.75rem;"></i>
+                        </a>
+                        <div class="text-muted small">
+                            <i class="bi bi-geo-alt-fill text-danger opacity-50 me-1"></i>{{ r.sala }}
+                        </div>
+                    </td>
+                    
+                    <!-- 4 --> 
+                    <td>
+                        {% if r.tecnico_nombre %}
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 24px; height: 24px; font-size: 0.7rem;">
+                                    {{ r.tecnico_nombre[0] | upper }}
+                                </div>
+                                <span class="fw-medium">{{ r.tecnico_nombre }}</span>
+                            </div>
+                        {% else %}
+                            <span class="text-muted fst-italic">Sin asignar</span>
+                        {% endif %}
+                    </td>
+                    
+                    <!-- 5 --> 
+                    <td>
+                        {% set badge_class = 'status-secondary' %}
+                        {% if 'REPARADO' in r.estado %}{% set badge_class = 'status-success' %}
+                        {% elif 'PEND' in r.estado %}{% set badge_class = 'status-warning' %}
+                        {% elif 'SIN REPARACION' in r.estado %}{% set badge_class = 'status-danger' %}
+                        {% elif 'PRUEBA' in r.estado %}{% set badge_class = 'status-info' %}
+                        {% endif %}
+                        <span class="status-pill {{ badge_class }}">
+                            {{ r.estado }}
+                        </span>
+                        
+                        {% if r.urgente == 'SI' %}
+                            <div class="urgency-badge mt-2">
+                                <i class="bi bi-exclamation-triangle-fill"></i> URGENTE
+                            </div>
+                        {% endif %}
+                    </td>
+                    
+                    <!-- 6 CONDICIONAL --> 
+                    {% if estado_actual == 'REPARADOS' %}
+                        <td class="text-success fw-bold align-middle" style="font-size: 0.85rem;">
+                            {{ r.fecha_reparado.split(' ')[0] if r.fecha_reparado else '--' }}
+                        </td>
+                    {% endif %}
+
+                    <!-- 7 --> 
+                    <td>
+                        <div class="text-truncate text-muted" style="max-width: 250px;" title="{{ r.observaciones }}">
+                            {{ r.observaciones or 'Sin comentarios' }}
+                        </div>
+                    </td>
+                    
+                    <!-- 8 --> 
+                    <td class="text-end">
+                        <div class="d-flex gap-1 justify-content-end">
+                            <a href="{{ url_for('detalle_reparacion', id=r.id) }}" class="btn btn-light action-btn text-dark border" title="Ver Ficha" data-bs-toggle="tooltip">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            {% if session.get('rol') == 'admin' %}
+                            <button class="btn btn-light action-btn text-primary border" title="Editar orden" data-bs-toggle="tooltip" onclick="window.location.href='/reparacion/editar/{{ r.id }}'">
+                                <i class="bi bi-pencil-square"></i>
+                            </button>
+                            <button type="button" class="btn btn-light action-btn text-danger border" title="Eliminar orden" onclick="prepararEliminar({{ r.id }})" data-bs-toggle="modal" data-bs-target="#modalEliminar" data-bs-tooltip="tooltip">
+                                <i class="bi bi-trash3"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    {% if not reparaciones %}
+    <div class="text-center py-5">
+        <div class="display-1 text-muted opacity-25 mb-3"><i class="bi bi-inbox"></i></div>
+        <h5 class="text-muted fw-bold">No se encontraron registros</h5>
+        <p class="text-secondary">Intentá limpiar la búsqueda o cambiar los filtros.</p>
+        {% if busqueda or f_sala or f_tecnico or f_estado or f_anio or f_mes or f_dia or f_diasemana %}
+        <a href="{{ url_for('index', estado=estado_actual) }}" class="btn btn-outline-primary mt-2">Limpiar filtros</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    
+    <!-- Footer / Pagination -->
+    <div class="p-3 border-top bg-light d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+        <span class="text-muted small fw-medium">
+            Mostrando página {{ page }} de {{ total_pages }}
+        </span>
+        
+        <nav aria-label="Navegación de páginas">
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                    <a class="page-link shadow-none" href="{{ url_for('index', page=page-1, estado=estado_actual, q=busqueda, f_sala=f_sala, f_tecnico=f_tecnico, f_estado=f_estado, f_anio=f_anio, f_mes=f_mes, f_dia=f_dia, f_diasemana=f_diasemana) }}"><i class="bi bi-chevron-left"></i></a>
+                </li>
+
+                {% for p in range(1, total_pages + 1) %}
+                    {% if p == 1 or p == total_pages or (p >= page - 1 and p <= page + 1) %}
+                        <li class="page-item {% if p == page %}active{% endif %}">
+                            <a class="page-link shadow-none" href="{{ url_for('index', page=p, estado=estado_actual, q=busqueda, f_sala=f_sala, f_tecnico=f_tecnico, f_estado=f_estado, f_anio=f_anio, f_mes=f_mes, f_dia=f_dia, f_diasemana=f_diasemana) }}">{{ p }}</a>
+                        </li>
+                    {% elif p == page - 2 or p == page + 2 %}
+                        <li class="page-item disabled"><span class="page-link border-0 bg-transparent text-muted">...</span></li>
+                    {% endif %}
+                {% endfor %}
+
+                <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                    <a class="page-link shadow-none" href="{{ url_for('index', page=page+1, estado=estado_actual, q=busqueda, f_sala=f_sala, f_tecnico=f_tecnico, f_estado=f_estado, f_anio=f_anio, f_mes=f_mes, f_dia=f_dia, f_diasemana=f_diasemana) }}"><i class="bi bi-chevron-right"></i></a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+    });
+
+    function confirmDelete(id) {
+        if(confirm('¿Estás seguro de eliminar este registro de reparación? Esta acción no se puede deshacer.')) {
+            window.location.href = '/reparacion/eliminar/' + id;
+        }
+    }
+</script>
+{% endblock %}

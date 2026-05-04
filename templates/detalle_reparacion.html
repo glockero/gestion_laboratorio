@@ -1,0 +1,795 @@
+{% extends "layout.html" %}
+{% block content %}
+<style>
+    .detail-card {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        border: 1px solid #e2e8f0;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .detail-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid #f1f5f9;
+        background: #f8fafc;
+        border-radius: 16px 16px 0 0;
+    }
+
+    .detail-body {
+        padding: 1.5rem;
+        flex-grow: 1;
+    }
+
+    .info-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #64748b;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+
+    .info-value {
+        font-size: 1rem;
+        color: #1e293b;
+        font-weight: 500;
+        margin-bottom: 1.25rem;
+        word-break: break-word;
+    }
+
+    .comments-container {
+        background-color: #f8fafc;
+        border-radius: 12px;
+        padding: 1rem;
+        height: 350px;
+        overflow-y: auto;
+        border: 1px solid #e2e8f0;
+    }
+
+    .comment-bubble {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .comment-bubble.new {
+        border-color: #93c5fd;
+        background: #eff6ff;
+    }
+
+    .comment-bubble.system {
+        border-color: #fde047;
+        background: #fefce8;
+    }
+
+    .comment-bubble.devolucion {
+        border-color: #fca5a5;
+        background: #fef2f2;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .interactive-select {
+        cursor: pointer;
+        padding: 0.4em 2em 0.4em 0.8em;
+        font-size: 0.85rem;
+        border-radius: 8px;
+        transition: all 0.2s;
+    }
+    
+    .ts-wrapper .ts-control {
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        border: 1px solid #e2e8f0;
+        box-shadow: none;
+        font-weight: 600;
+        color: #1e293b;
+    }
+    .ts-wrapper.focus .ts-control {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+    .ts-wrapper.disabled .ts-control {
+        background-color: #f8fafc;
+        opacity: 0.7;
+        cursor: not-allowed;
+        color: #94a3b8;
+    }
+</style>
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-3">
+        <a href="/" class="btn btn-light rounded-circle shadow-sm" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+            <h2 class="fw-bold mb-0 text-primary-color">Ficha Técnica <span class="text-secondary fs-4">#{{ r.id }}</span></h2>
+            <p class="text-muted mb-0">Detalles y seguimiento de la reparación.</p>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        {% if session.get('rol') == 'admin' %}
+        <!-- BOTÓN ACTUALIZADO PARA ABRIR EL MODAL (SOLO ADMIN) -->
+        <button class="btn btn-outline-primary fw-bold bg-white" data-bs-toggle="modal" data-bs-target="#modalEditarReparacion">
+            <i class="bi bi-pencil-square me-1"></i> Editar Registro
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- COLUMNA IZQUIERDA: INFO DEL EQUIPO -->
+    <div class="col-lg-5 col-xl-4">
+        <div class="detail-card">
+            <div class="detail-header d-flex justify-content-between align-items-center gap-2">
+                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-info-circle text-primary me-2"></i>General</h6>
+            </div>
+            <div class="detail-body">
+                <div class="row">
+                    <div class="col-6">
+                        <div class="info-label">Fecha Ingreso</div>
+                        <div class="info-value"><i class="bi bi-calendar3 me-1 text-muted"></i>{{ r.fecha }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="info-label">Sala</div>
+                        <div class="info-value"><i class="bi bi-geo-alt-fill me-1 text-danger"></i>{{ r.sala }}</div>
+                    </div>
+                    
+                    <div class="col-12"><hr class="text-muted opacity-25 mt-0 mb-3"></div>
+
+                    <div class="col-12">
+                        <div class="info-label">Equipo</div>
+                        <div class="info-value fw-bold text-primary fs-5 mb-3">{{ r.equipo }}</div>
+                    </div>
+
+                    <div class="col-6">
+                        <div class="info-label">Familia</div>
+                        <div class="info-value">{{ r.familia or '--' }}</div>
+                    </div>
+                    
+                    <div class="col-6">
+                        <div class="info-label">Prioridad</div>
+                        <select class="form-select interactive-select fw-bold border-0 shadow-sm w-auto {% if r.urgente == 'SI' %}text-danger bg-danger bg-opacity-10{% else %}text-secondary bg-light{% endif %}" id="quickUrgencia" onchange="actualizarPrioridad(this)">
+                            <option value="NO" {% if r.urgente == 'NO' %}selected{% endif %}>Normal</option>
+                            <option value="SI" {% if r.urgente == 'SI' %}selected{% endif %}>URGENTE</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12"><hr class="text-muted opacity-25 mt-0 mb-3"></div>
+
+                    <div class="col-6">
+                        <div class="info-label">NPU</div>
+                        <div class="info-value font-monospace fw-bold text-dark d-flex align-items-center flex-wrap gap-2">
+                            <span class="text-nowrap">{{ r.npu or '--' }}</span>
+                            {% if historial_npu %}
+                                <span class="badge bg-warning text-dark shadow-sm text-wrap text-start" style="font-size: 0.7rem; cursor: pointer; transition: all 0.2s; line-height: 1.2;" data-bs-toggle="modal" data-bs-target="#modalHistorialNPU" onmouseover="this.classList.replace('bg-warning', 'bg-danger'); this.classList.replace('text-dark', 'text-white');" onmouseout="this.classList.replace('bg-danger', 'bg-warning'); this.classList.replace('text-white', 'text-dark');" title="Ver historial de ingresos">
+                                    <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ historial_npu|length }} Ingreso(s) previo(s)
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="info-label">UID</div>
+                        <div class="info-value font-monospace text-muted">{{ r.uid or '--' }}</div>
+                    </div>
+
+                    <div class="col-12"><hr class="text-muted opacity-25 mt-0 mb-3"></div>
+
+                    <!-- SELECTOR TÉCNICO Y BOTÓN DE DEVOLUCIÓN -->
+                    <div class="col-12">
+                        <div class="info-label d-flex justify-content-between align-items-center mb-1">
+                            <span>Técnico Asignado</span>
+                        </div>
+                        <select class="form-select w-100 mb-2" id="quickTecnico">
+                            <option value="">Sin asignar (En cola)</option>
+                            {% for t in tecnicos %}
+                                {% if session.get('rol') == 'admin' or session.get('tecnico_id') == t.id or r.tecnico_id == t.id %}
+                                    <option value="{{ t.id }}" {% if r.tecnico_id == t.id %}selected{% endif %} {% if session.get('rol') != 'admin' and session.get('tecnico_id') != t.id %}disabled{% endif %}>{{ t.nombre }} {% if session.get('rol') != 'admin' and session.get('tecnico_id') != t.id %}(Actual){% endif %}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                        
+                        <!-- BOTÓN DEVOLVER (Se oculta si no hay técnico) -->
+                        <button id="btnDevolver" class="btn btn-outline-danger btn-sm w-100 fw-bold" onclick="abrirModalDevolucion()" style="display: {% if r.tecnico_id %}block{% else %}none{% endif %};">
+                            <i class="bi bi-arrow-return-left me-1"></i> Devolver Reparación
+                        </button>
+                    </div>
+
+                    <div class="col-12"><hr class="text-muted opacity-25 mt-3 mb-3"></div>
+
+                    <!-- SELECTOR ESTADO -->
+                    <div class="col-12">
+                        <div class="info-label d-flex justify-content-between align-items-center mb-1">
+                            <span>Estado de Reparación</span>
+                            <span id="alertaEstado" class="text-danger text-lowercase fw-bold" style="display: none; font-size: 0.65rem;">
+                                <i class="bi bi-lock-fill me-1"></i>Requiere técnico
+                            </span>
+                        </div>
+                        <select class="form-select w-100" id="quickEstado">
+                            {% for e in estados %}
+                                <option value="{{ e.nombre }}" {% if r.estado == e.nombre %}selected{% endif %}>{{ e.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-12"><hr class="text-muted opacity-25 mt-3 mb-3"></div>
+
+                    <!-- BLOQUE DE TIEMPOS DE RESOLUCIÓN -->
+                    <div class="col-12">
+                        <h6 class="info-label text-primary mb-3"><i class="bi bi-clock-history me-1"></i>Tiempos de Resolución</h6>
+                        <div class="row text-center g-2">
+                            <div class="col-3">
+                                <div class="small text-muted fw-bold" style="font-size: 0.65rem;">PENDIENTE</div>
+                                <div class="small" style="font-size: 0.75rem;" id="timePendiente">{{ r.fecha_pendiente.split(' ')[0] if r.fecha_pendiente else '--' }}</div>
+                            </div>
+                            <div class="col-3 border-start">
+                                <div class="small text-primary fw-bold" style="font-size: 0.65rem;">EN REPARACIÓN</div>
+                                <div class="small" style="font-size: 0.75rem;" id="timeEnRep">{{ r.fecha_en_reparacion.split(' ')[0] if r.fecha_en_reparacion else '--' }}</div>
+                            </div>
+                            <div class="col-3 border-start">
+                                <div class="small text-success fw-bold" style="font-size: 0.65rem;">REPARADO</div>
+                                <div class="small" style="font-size: 0.75rem;" id="timeRep">{{ r.fecha_reparado.split(' ')[0] if r.fecha_reparado else '--' }}</div>
+                            </div>
+                            <div class="col-3 border-start">
+                                <div class="small text-danger fw-bold" style="font-size: 0.65rem;">SIN REP.</div>
+                                <div class="small" style="font-size: 0.75rem;" id="timeSinRep">{{ r.fecha_sin_reparacion.split(' ')[0] if r.fecha_sin_reparacion else '--' }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: HISTORIAL Y NUEVO COMENTARIO -->
+    <div class="col-lg-7 col-xl-8 d-flex flex-column gap-4">
+        
+        <div class="detail-card" style="flex: 1;">
+            <div class="detail-header">
+                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-chat-left-text text-primary me-2"></i>Historial de Observaciones</h6>
+            </div>
+            <div class="detail-body p-3">
+                <div class="comments-container shadow-inner" id="comentariosContainer">
+                    {% if r.observaciones %}
+                        <div class="comment-bubble" style="white-space: pre-wrap; font-family: system-ui;">{{ r.observaciones }}</div>
+                    {% else %}
+                        <div id="noCommentsMsg" class="h-100 d-flex flex-column align-items-center justify-content-center text-muted opacity-50">
+                            <i class="bi bi-chat-square-dotted display-4 mb-2"></i>
+                            <p>No hay comentarios registrados.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="detail-card">
+            <div class="detail-header bg-primary bg-opacity-10 border-primary border-opacity-25">
+                <h6 class="mb-0 fw-bold text-primary"><i class="bi bi-plus-circle me-2"></i>Agregar Nuevo Comentario</h6>
+            </div>
+            <div class="detail-body p-3">
+                <form id="commentForm" onsubmit="submitComentario(event)">
+                    <textarea id="nuevoComentario" class="form-control mb-3" rows="3" placeholder="Escribí aquí una nueva actualización..." required></textarea>
+                    <div class="d-flex justify-content-end">
+                        <button type="submit" id="btnSubmitComment" class="btn btn-primary fw-bold shadow-sm px-4">
+                            <i class="bi bi-send-fill me-2"></i>Enviar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- MODAL PARA DEVOLVER REPARACIÓN -->
+<div class="modal fade" id="modalDevolucion" tabindex="-1" aria-labelledby="modalDevolucionLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-danger">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title fw-bold" id="modalDevolucionLabel"><i class="bi bi-arrow-return-left me-2"></i>Devolver Reparación</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted mb-3">Estás a punto de quitarle el técnico a este equipo y devolverlo a estado <strong>PEND. DE REVISION</strong>.</p>
+        <div class="mb-3">
+            <label class="form-label fw-bold">Motivo de la devolución <span class="text-danger">*</span></label>
+            <textarea id="motivoDevolucion" class="form-control" rows="3" placeholder="Ej: Faltan repuestos, placa irreparable, etc..." required></textarea>
+        </div>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger fw-bold" id="btnConfirmarDevolucion" onclick="confirmarDevolucion()">Confirmar Devolución</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if session.get('rol') == 'admin' %}
+<!-- MODAL PARA EDITAR REPARACIÓN (SOLO ADMIN) -->
+<div class="modal fade text-start" id="modalEditarReparacion" tabindex="-1" aria-labelledby="modalEditarLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <form method="POST" action="/reparacion/editar/{{ r.id }}">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="modal-header bg-white border-bottom p-4">
+                    <h5 class="fw-bold text-dark mb-0" id="modalEditarLabel">
+                        <i class="bi bi-pencil-square text-primary me-2"></i>Editar Datos de Reparación #{{ r.id }}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                
+                <div class="modal-body p-4">
+                    <div class="row g-4">
+                        <!-- Fecha -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-secondary small">Fecha y Hora</label>
+                            <input type="text" name="fecha" class="form-control bg-light" value="{{ r.fecha }}" required>
+                            <div class="form-text">Formato: DD/MM/YYYY HH:MM</div>
+                        </div>
+
+                        <!-- Prioridad -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-secondary small">Prioridad</label>
+                            <select name="urgente" class="form-select fw-bold">
+                                <option value="NO" class="text-secondary" {% if r.urgente == 'NO' %}selected{% endif %}>Normal</option>
+                                <option value="SI" class="text-danger" {% if r.urgente == 'SI' %}selected{% endif %}>URGENTE</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12"><hr class="text-muted opacity-25 m-0"></div>
+
+                        <!-- Sala -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-secondary small">Sala <span class="text-danger">*</span></label>
+                            <select name="sala" id="editSelectSala" class="form-select" required>
+                                <option value="{{ r.sala }}" selected>{{ r.sala }}</option>
+                                {% for s in salas %}
+                                    {% if s.nombre != r.sala %}
+                                    <option value="{{ s.nombre }}">{{ s.nombre }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Familia -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-secondary small">Familia</label>
+                            <select name="familia" id="editSelectFamilia" class="form-select">
+                                <option value="{{ r.familia }}" selected>{{ r.familia }}</option>
+                                {% for f in familias %}
+                                    {% if f.nombre != r.familia %}
+                                    <option value="{{ f.nombre }}">{{ f.nombre }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Equipo -->
+                        <div class="col-12">
+                            <label class="form-label fw-bold text-secondary small">Equipo / Modelo <span class="text-danger">*</span></label>
+                            <select name="equipo" id="editSelectEquipo" class="form-select" required>
+                                <option value="{{ r.equipo }}" selected>{{ r.equipo }}</option>
+                                {% for e in equipos %}
+                                    {% if e.nombre != r.equipo %}
+                                    <option value="{{ e.nombre }}">{{ e.nombre }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-12"><hr class="text-muted opacity-25 m-0"></div>
+
+                        <!-- NPU -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-secondary small">NPU</label>
+                            <input type="text" name="npu" class="form-control font-monospace" value="{{ r.npu or '' }}" autocomplete="off">
+                        </div>
+
+                        <!-- UID -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-secondary small">UID</label>
+                            <input type="text" name="uid" class="form-control font-monospace" value="{{ r.uid or '' }}" autocomplete="off">
+                        </div>
+
+                        <div class="col-12"><hr class="text-muted opacity-25 m-0"></div>
+
+                        <!-- Técnico -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-secondary small">Técnico Asignado</label>
+                            <select name="tecnico_id" class="form-select">
+                                <option value="">-- Sin Asignar --</option>
+                                {% for t in tecnicos %}
+                                    <option value="{{ t.id }}" {% if r.tecnico_id == t.id %}selected{% endif %}>{{ t.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Observaciones -->
+                        <div class="col-12">
+                            <label class="form-label fw-bold text-secondary small">Observaciones</label>
+                            <textarea name="observaciones" class="form-control" rows="4">{{ r.observaciones or '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer bg-light p-3">
+                    <button type="button" class="btn btn-light fw-bold text-secondary px-4" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary fw-bold px-5 shadow-sm">Guardar Cambios</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- MODAL HISTORIAL NPU -->
+{% if historial_npu %}
+<div class="modal fade" id="modalHistorialNPU" tabindex="-1" aria-labelledby="modalHistorialNPULabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-warning bg-opacity-10 border-bottom-0 p-4">
+                <h5 class="fw-bold text-dark mb-0" id="modalHistorialNPULabel">
+                    <i class="bi bi-clock-history text-warning me-2"></i>Historial del NPU: {{ r.npu }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for hist in historial_npu %}
+                    <a href="/reparacion/{{ hist.id }}" class="list-group-item list-group-item-action p-4 border-bottom">
+                        
+                        <!-- Encabezado: Ingreso chico y Fecha -->
+                        <div class="d-flex w-100 justify-content-between align-items-center mb-3">
+                            <span class="small fw-bold text-primary opacity-75">Ingreso #{{ hist.id }}</span>
+                            <small class="text-muted fw-medium"><i class="bi bi-calendar3 me-1"></i>{{ hist.fecha }}</small>
+                        </div>
+                        
+                        <!-- Badges: Estado, Prioridad y Técnico -->
+                        <div class="mb-3 d-flex gap-2 flex-wrap">
+                            <span class="badge bg-secondary">{{ hist.estado }}</span>
+                            
+                            {% if hist.urgente == 'SI' %}
+                                <span class="badge bg-danger"><i class="bi bi-exclamation-circle me-1"></i>URGENTE</span>
+                            {% else %}
+                                <span class="badge bg-light text-secondary border">Normal</span>
+                            {% endif %}
+                            
+                            <span class="badge bg-light text-dark border">
+                                <i class="bi bi-person-fill me-1 text-primary"></i>{{ hist.tecnico_nombre or 'Sin asignar' }}
+                            </span>
+                        </div>
+
+                        <!-- Observaciones limitadas a 2 líneas -->
+                        {% if hist.observaciones %}
+                        <div class="small text-muted bg-light p-2 rounded border" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.8rem;">
+                            <i class="bi bi-chat-text me-1"></i>{{ hist.observaciones }}
+                        </div>
+                        {% else %}
+                        <div class="small text-muted fst-italic" style="font-size: 0.8rem;">Sin observaciones registradas.</div>
+                        {% endif %}
+                        
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="modal-footer bg-light p-3">
+                <button type="button" class="btn btn-secondary fw-bold w-100" data-bs-dismiss="modal">Cerrar Historial</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+    const reparacionId = {{ r.id }};
+    const container = document.getElementById('comentariosContainer');
+    const noCommentsMsg = document.getElementById('noCommentsMsg');
+    const alertaEstado = document.getElementById('alertaEstado');
+    const btnDevolver = document.getElementById('btnDevolver');
+
+    let lastTecnico = "{{ r.tecnico_id or '' }}";
+    let lastEstado = "{{ r.estado or '' }}";
+    let tsTecnico, tsEstado;
+    let modalDevolucionInstancia;
+
+    function inyectarBurbuja(timestamp, texto, tipo = 'normal') {
+        if (noCommentsMsg) noCommentsMsg.remove();
+        
+        const bubble = document.createElement('div');
+        if (tipo === 'sistema') bubble.className = 'comment-bubble system';
+        else if (tipo === 'devolucion') bubble.className = 'comment-bubble devolucion';
+        else bubble.className = 'comment-bubble new';
+        
+        bubble.innerHTML = `
+            <div class="d-flex align-items-center mb-2">
+                <span class="badge ${tipo === 'devolucion' ? 'bg-danger' : (tipo === 'sistema' ? 'bg-warning text-dark' : 'bg-primary')} rounded-pill"><i class="bi bi-clock me-1"></i>${timestamp}</span>
+            </div>
+            <div style="white-space: pre-wrap;" class="fw-medium">${texto}</div>
+        `;
+
+        container.appendChild(bubble);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function actualizarVisualizacionCandado() {
+        if (!lastTecnico || lastTecnico === "None") {
+            tsEstado.disable();
+            alertaEstado.style.display = 'inline-block';
+            btnDevolver.style.display = 'none';
+        } else {
+            tsEstado.enable();
+            alertaEstado.style.display = 'none';
+            btnDevolver.style.display = 'block';
+        }
+    }
+
+    // --- COMENTARIO NORMAL ---
+    async function submitComentario(event) {
+        event.preventDefault();
+        const input = document.getElementById('nuevoComentario');
+        const btn = document.getElementById('btnSubmitComment');
+        const text = input.value.trim();
+        if (!text) return;
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
+
+        try {
+            const response = await fetch(`/api/reparacion/${reparacionId}/comentario`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ comentario: text })
+            });
+            const data = await response.json();
+            if (data.success) {
+                inyectarBurbuja(data.timestamp, data.texto, 'normal');
+                input.value = '';
+            } else { alert(data.error); }
+        } catch (error) { alert('Problema de conexión.'); } 
+        finally { btn.disabled = false; btn.innerHTML = '<i class="bi bi-send-fill me-2"></i>Enviar'; }
+    }
+
+    // --- DEVOLVER REPARACIÓN ---
+    function abrirModalDevolucion() {
+        if (!modalDevolucionInstancia) {
+            modalDevolucionInstancia = new bootstrap.Modal(document.getElementById('modalDevolucion'));
+        }
+        document.getElementById('motivoDevolucion').value = '';
+        modalDevolucionInstancia.show();
+    }
+
+    async function confirmarDevolucion() {
+        const motivo = document.getElementById('motivoDevolucion').value.trim();
+        if (!motivo) {
+            alert('Por favor, ingresá el motivo de la devolución.');
+            return;
+        }
+
+        const btn = document.getElementById('btnConfirmarDevolucion');
+        btn.disabled = true;
+        btn.innerHTML = 'Procesando...';
+
+        try {
+            const response = await fetch(`/api/reparacion/${reparacionId}/devolver`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ comentario: motivo })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                // Actualizar interfaz visual
+                tsTecnico.setValue("", true); // Sin asignar
+                tsEstado.enable(); // Habilito para poder cambiar el valor programaticamente
+                tsEstado.setValue("PEND. DE REVISION", true);
+                
+                lastTecnico = "";
+                lastEstado = "PEND. DE REVISION";
+                
+                document.getElementById('timePendiente').innerText = data.timestamp.split(' ')[0];
+                inyectarBurbuja(data.timestamp, data.texto, 'devolucion');
+                
+                modalDevolucionInstancia.hide();
+                actualizarVisualizacionCandado();
+            } else {
+                alert(data.error);
+            }
+        } catch (error) {
+            console.error(error);
+            alert('Error de conexión.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = 'Confirmar Devolución';
+        }
+    }
+
+    // --- API TÉCNICO (Con Pase Automático a En Reparación) ---
+    async function actualizarTecnicoAPI(tecnicoId) {
+        tsTecnico.disable();
+        tsEstado.disable(); // Pausamos el estado un segundo
+        
+        try {
+            const response = await fetch(`/api/reparacion/${reparacionId}/tecnico`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tecnico_id: tecnicoId })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                lastTecnico = tecnicoId;
+                inyectarBurbuja(data.timestamp, data.texto, 'sistema');
+                
+                // MAGIA: Si le asigo un técnico y estaba pendiente, lo paso a EN REPARACION
+                const estadoActualLimpio = lastEstado.trim().toUpperCase();
+                if (tecnicoId && estadoActualLimpio === "PEND. DE REVISION") {
+                    const estadoDeseado = "EN REPARACION";
+                    
+                    // 1. Cambio el valor en el desplegable visualmente
+                    tsEstado.enable();
+                    tsEstado.setValue(estadoDeseado, true); 
+                    lastEstado = estadoDeseado;
+                    
+                    // 2. Le aviso a la base de datos por atrás
+                    const resEst = await fetch(`/api/reparacion/${reparacionId}/estado`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ estado: estadoDeseado })
+                    });
+                    
+                    if (resEst.ok) {
+                        const dataEst = await resEst.json();
+                        if (dataEst.success) {
+                            inyectarBurbuja(dataEst.timestamp, dataEst.texto, 'sistema');
+                            const diaCorto = dataEst.timestamp.split(' ')[0];
+                            document.getElementById('timeEnRep').innerText = diaCorto;
+                        }
+                    }
+                }
+            } else {
+                tsTecnico.setValue(lastTecnico, true);
+                alert(data.error || 'Error al cambiar el tecnico.');
+            }
+        } catch (error) {
+            console.error(error);
+            tsTecnico.setValue(lastTecnico, true);
+        } finally {
+            tsTecnico.enable();
+            actualizarVisualizacionCandado(); 
+        }
+    }
+
+    // --- API ESTADO ---
+    async function actualizarEstadoAPI(nuevoEstado) {
+        tsEstado.disable();
+        try {
+            const response = await fetch(`/api/reparacion/${reparacionId}/estado`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ estado: nuevoEstado })
+            });
+            const data = await response.json();
+            
+            if (data.success) {
+                lastEstado = nuevoEstado;
+                inyectarBurbuja(data.timestamp, data.texto, 'sistema');
+
+                const diaCorto = data.timestamp.split(' ')[0];
+                const upperE = nuevoEstado.toUpperCase();
+                if(upperE.includes('PEND')) document.getElementById('timePendiente').innerText = diaCorto;
+                else if(upperE.includes('EN REPARACION')) document.getElementById('timeEnRep').innerText = diaCorto;
+                else if(upperE.includes('SIN REPARACION')) document.getElementById('timeSinRep').innerText = diaCorto;
+                else if(upperE.includes('REPARADO')) document.getElementById('timeRep').innerText = diaCorto;
+            } else {
+                tsEstado.setValue(lastEstado, true);
+            }
+        } catch (error) {
+            tsEstado.setValue(lastEstado, true);
+        } finally {
+            actualizarVisualizacionCandado();
+        }
+    }
+
+    // --- PRIORIDAD ---
+    async function actualizarPrioridad(selectElement) {
+        const nuevaPrioridad = selectElement.value;
+        selectElement.disabled = true;
+
+        if(nuevaPrioridad === 'SI') {
+            selectElement.classList.replace('text-secondary', 'text-danger');
+            selectElement.classList.replace('bg-light', 'bg-danger');
+            selectElement.classList.add('bg-opacity-10');
+        } else {
+            selectElement.classList.replace('text-danger', 'text-secondary');
+            selectElement.classList.replace('bg-danger', 'bg-light');
+            selectElement.classList.remove('bg-opacity-10');
+        }
+
+        try {
+            const response = await fetch(`/api/reparacion/${reparacionId}/prioridad`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ urgente: nuevaPrioridad })
+            });
+            const data = await response.json();
+            if (data.success) inyectarBurbuja(data.timestamp, data.texto, 'sistema');
+        } catch (error) {} 
+        finally { selectElement.disabled = false; }
+    }
+
+    // --- INICIALIZACIÓN ---
+    document.addEventListener('DOMContentLoaded', () => {
+        const commonConfig = {
+            create: false,
+            sortField: { field: "text", direction: "asc" },
+            maxOptions: null
+        };
+
+        tsTecnico = new TomSelect("#quickTecnico", {
+            ...commonConfig,
+            onChange: function(val) {
+                if (val === lastTecnico) return; 
+                actualizarTecnicoAPI(val);
+            }
+        });
+
+        tsEstado = new TomSelect("#quickEstado", {
+            ...commonConfig,
+            onChange: function(val) {
+                if (val === lastEstado) return; 
+                actualizarEstadoAPI(val);
+            }
+        });
+
+        actualizarVisualizacionCandado();
+        container.scrollTop = container.scrollHeight;
+
+        // INICIALIZACIÓN DE TOMSELECT EN EL MODAL DE EDICIÓN
+        const modalEl = document.getElementById('modalEditarReparacion');
+        if (modalEl) {
+            let tomSelectsIniciados = false;
+            modalEl.addEventListener('shown.bs.modal', function () {
+                if (!tomSelectsIniciados) {
+                    const tsConfig = {
+                        create: true,
+                        sortField: { field: "text", direction: "asc" },
+                        placeholder: "Buscar o escribir nuevo..."
+                    };
+
+                    new TomSelect("#editSelectSala", tsConfig);
+                    new TomSelect("#editSelectFamilia", tsConfig);
+                    new TomSelect("#editSelectEquipo", tsConfig);
+                    
+                    tomSelectsIniciados = true;
+                }
+            });
+        }
+
+        // --- LÓGICA PARA REABRIR EL MODAL DEL HISTORIAL AL VOLVER ATRÁS ---
+        const modalHistorialEl = document.getElementById('modalHistorialNPU');
+        if (modalHistorialEl) {
+            if (window.location.hash === '#historial') {
+                setTimeout(() => {
+                    new bootstrap.Modal(modalHistorialEl).show();
+                }, 50);
+            }
+            modalHistorialEl.addEventListener('show.bs.modal', () => {
+                history.replaceState(null, null, '#historial');
+            });
+            modalHistorialEl.addEventListener('hidden.bs.modal', () => {
+                history.replaceState(null, null, window.location.pathname + window.location.search);
+            });
+        }
+    }); 
+</script>
+{% endblock %}
