@@ -1,5 +1,17 @@
 {% extends "layout.html" %}
 {% block content %}
+<style>
+    .new-repair-card {
+        background: #ffffff;
+        border: 1px solid #dbe4f0 !important;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.10) !important;
+    }
+
+    .new-repair-card .card-header {
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    }
+</style>
+
 <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
     <div class="d-flex align-items-center gap-3">
         <a href="/" class="btn btn-light rounded-circle shadow-sm" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
@@ -14,19 +26,26 @@
 
 <div class="row justify-content-center">
     <div class="col-lg-10 col-xl-8">
-        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card new-repair-card border-0 shadow-sm rounded-4 overflow-hidden">
             <div class="card-header bg-white border-bottom p-4">
                 <h5 class="fw-bold text-dark mb-0"><i class="bi bi-clipboard2-data text-primary me-2"></i>Datos del Ingreso</h5>
             </div>
             <div class="card-body p-4 p-md-5">
                 <form method="POST" action="/reparacion/nueva">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     
                     <div class="row g-4 mb-4">
                         <!-- Fecha -->
                         <div class="col-md-6">
                             <label class="form-label fw-bold text-secondary small">Fecha y Hora</label>
-                            <input type="text" name="fecha" class="form-control bg-light" value="{{ hoy }}" required>
-                            <div class="form-text">Formato: DD/MM/YYYY HH:MM</div>
+                            <input type="text" name="fecha" class="form-control bg-light" value="{{ hoy }}" required {% if session.get('rol') == 'tecnico' %}readonly{% endif %}>
+                            <div class="form-text">
+                                {% if session.get('rol') == 'tecnico' %}
+                                La fecha y hora de carga se toman automaticamente.
+                                {% else %}
+                                Formato: DD/MM/YYYY HH:MM
+                                {% endif %}
+                            </div>
                         </div>
 
                         <!-- Prioridad -->

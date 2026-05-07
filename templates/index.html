@@ -119,6 +119,16 @@
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     }
 
+    .table-scroll {
+        max-height: calc(100vh - 360px);
+        min-height: 320px;
+        overflow: auto;
+    }
+
+    .table-scroll .table-responsive {
+        overflow: visible;
+    }
+
     .custom-table {
         margin-bottom: 0;
         font-size: 0.9rem;
@@ -135,6 +145,10 @@
         border-bottom: 2px solid #e2e8f0;
         border-right: 1px solid #cbd5e1; /* Cuadrícula vertical en cabecera */
         white-space: nowrap;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        box-shadow: inset 0 -1px 0 #cbd5e1;
     }
 
     .custom-table thead th:last-child {
@@ -182,6 +196,13 @@
         align-items: center;
         gap: 3px;
         width: fit-content;
+    }
+
+    @media (max-width: 991.98px) {
+        .table-scroll {
+            max-height: calc(100vh - 320px);
+            min-height: 260px;
+        }
     }
 </style>
 
@@ -339,6 +360,7 @@
 
 <!-- Table Data -->
 <div class="table-container">
+    <div class="table-scroll">
     <div class="table-responsive">
         <table class="table custom-table">
             <thead class="table-light">
@@ -351,6 +373,7 @@
                     <!-- 6 CONDICIONAL -->
                     {% if estado_actual == 'REPARADOS' %}
                         <th class="text-success"><i class="bi bi-calendar-check me-1"></i>Fecha Rep.</th>
+                        <th class="text-primary"><i class="bi bi-cash-stack me-1"></i>Ahorro</th>
                     {% endif %}
                     <!-- 7 --> <th>Observaciones</th>
                     <!-- 8 --> <th class="text-end">Acciones</th>
@@ -427,6 +450,9 @@
                         <td class="text-success fw-bold align-middle" style="font-size: 0.85rem;">
                             {{ r.fecha_reparado.split(' ')[0] if r.fecha_reparado else '--' }}
                         </td>
+                        <td class="text-primary fw-bold align-middle" style="font-size: 0.85rem; white-space: nowrap;">
+                            {{ format_price(r.ahorro_valor) }}
+                        </td>
                     {% endif %}
 
                     <!-- 7 --> 
@@ -446,7 +472,7 @@
                             <button class="btn btn-light action-btn text-primary border" title="Editar orden" data-bs-toggle="tooltip" onclick="window.location.href='/reparacion/editar/{{ r.id }}'">
                                 <i class="bi bi-pencil-square"></i>
                             </button>
-                            <button type="button" class="btn btn-light action-btn text-danger border" title="Eliminar orden" onclick="prepararEliminar({{ r.id }})" data-bs-toggle="modal" data-bs-target="#modalEliminar" data-bs-tooltip="tooltip">
+                            <button type="button" class="btn btn-light action-btn text-danger border" title="Eliminar orden" onclick="confirmDelete({{ r.id }})" data-bs-toggle="tooltip">
                                 <i class="bi bi-trash3"></i>
                             </button>
                             {% endif %}
@@ -456,6 +482,7 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
     </div>
     
     {% if not reparaciones %}
@@ -499,18 +526,97 @@
     </div>
 </div>
 
+<form id="deleteRepairForm" method="POST" class="d-none">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+
+<form id="undoDeleteRepairForm" method="POST" action="{{ url_for('restaurar_ultima_reparacion') }}" class="d-none">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+
+<div class="modal fade" id="modalEliminar" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 380px;">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-body text-center p-4">
+                <i class="bi bi-trash3 text-danger mb-3" style="font-size: 3rem;"></i>
+                <h5 class="fw-bold text-dark mb-2">Eliminar reparación</h5>
+                <p class="text-muted small mb-4">Esta acción eliminará el registro de forma permanente. ¿Deseas continuar?</p>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-light flex-grow-1 fw-bold text-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger flex-grow-1 fw-bold" id="confirmDeleteBtn">Sí, eliminar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+    let deleteRepairId = null;
+
     document.addEventListener('DOMContentLoaded', function () {
         var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
         var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
             return new bootstrap.Tooltip(tooltipTriggerEl)
         });
+
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('deleted') === '1') {
+            const undoUntil = parseInt(params.get('undo_until') || '0', 10);
+            const undoToastId = 'undo-delete-btn';
+            showToast(`Reparación eliminada correctamente. <button id="${undoToastId}" type="button" class="btn btn-sm btn-outline-primary ms-2">Deshacer</button> <span id="undo-delete-timer" class="ms-2 text-muted small"></span>`, 'success');
+
+            const button = document.getElementById(undoToastId);
+            const timer = document.getElementById('undo-delete-timer');
+            const toastElement = button ? button.closest('.toast') : null;
+
+            if (button) {
+                button.addEventListener('click', function() {
+                    if (Date.now() > undoUntil) {
+                        button.disabled = true;
+                        if (timer) timer.textContent = '(expirado)';
+                        return;
+                    }
+                    document.getElementById('undoDeleteRepairForm').submit();
+                });
+            }
+
+            if (timer && undoUntil) {
+                const interval = setInterval(() => {
+                    const remaining = Math.max(0, Math.ceil((undoUntil - Date.now()) / 1000));
+                    timer.textContent = remaining > 0 ? `(${remaining}s)` : '(expirado)';
+                    if (remaining <= 0) {
+                        clearInterval(interval);
+                        if (button) button.disabled = true;
+                        if (toastElement) {
+                            const bsToast = bootstrap.Toast.getInstance(toastElement) || new bootstrap.Toast(toastElement);
+                            setTimeout(() => bsToast.hide(), 700);
+                        }
+                    }
+                }, 250);
+            }
+
+            params.delete('deleted');
+            params.delete('undo_until');
+            const newQuery = params.toString();
+            const newUrl = window.location.pathname + (newQuery ? '?' + newQuery : '') + window.location.hash;
+            window.history.replaceState({}, document.title, newUrl);
+        }
+
+        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+        if (confirmDeleteBtn) {
+            confirmDeleteBtn.addEventListener('click', function() {
+                if (!deleteRepairId) return;
+                const form = document.getElementById('deleteRepairForm');
+                form.action = '/reparacion/eliminar/' + deleteRepairId;
+                form.submit();
+            });
+        }
     });
 
     function confirmDelete(id) {
-        if(confirm('¿Estás seguro de eliminar este registro de reparación? Esta acción no se puede deshacer.')) {
-            window.location.href = '/reparacion/eliminar/' + id;
-        }
+        deleteRepairId = id;
+        const modal = new bootstrap.Modal(document.getElementById('modalEliminar'));
+        modal.show();
     }
 </script>
 {% endblock %}

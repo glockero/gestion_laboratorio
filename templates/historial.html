@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial de Acciones</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background: #f8f9fa; }
+        .historial-card { border: none; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .historial-scroll { max-height: calc(100vh - 320px); min-height: 320px; overflow: auto; }
+        .historial-scroll .table-responsive { overflow: visible; }
+        .table-historial { font-size: 0.85rem; }
+        .table-historial th { background: #f1f3f5; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; position: sticky; top: 0; z-index: 2; box-shadow: inset 0 -1px 0 #cbd5e1; }
+        .badge-accion { font-weight: 500; padding: 4px 8px; border-radius: 6px; }
+        .badge-login { background: #d1e7dd; color: #0f5132; }
+        .badge-logout { background: #e2e3e5; color: #41464b; }
+        .badge-crear { background: #cfe2ff; color: #084298; }
+        .badge-editar { background: #fff3cd; color: #664d03; }
+        .badge-eliminar { background: #f8d7da; color: #842029; }
+        .badge-comentario { background: #dbeafe; color: #1d4ed8; }
+        .badge-estado { background: #e2d9f3; color: #4a266a; }
+        .badge-tecnico { background: #d1ecf1; color: #0c5460; }
+        .badge-backup { background: #d4edda; color: #155724; }
+        .badge-config { background: #f8d7da; color: #842029; }
+        .badge-default { background: #e2e3e5; color: #41464b; }
+        .filtro-card { border: none; border-radius: 10px; background: white; }
+        .pagination .page-link { color: #0d6efd; }
+        .pagination .page-item.active .page-link { background: #0d6efd; border-color: #0d6efd; }
+        .timestamp { font-size: 0.75rem; color: #6c757d; }
+        @media (max-width: 991.98px) { .historial-scroll { max-height: calc(100vh - 280px); min-height: 260px; } }
+    </style>
+</head>
+<body>
+    {% extends "layout.html" %}
+
+    {% block content %}
+    <div class="container-fluid py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="bi bi-clock-history"></i> Historial de Acciones</h2>
+            <a href="{{ url_for('configuracion') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i> Volver a Configuración
+            </a>
+        </div>
+
+        <div class="card filtro-card mb-4">
+            <div class="card-body">
+                <form method="GET" class="row g-3">
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted">Desde</label>
+                        <input type="date" name="f_fecha_desde" value="{{ f_fecha_desde }}" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted">Hasta</label>
+                        <input type="date" name="f_fecha_hasta" value="{{ f_fecha_hasta }}" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted">Usuario</label>
+                        <input type="text" name="f_usuario" value="{{ f_usuario }}" placeholder="Buscar usuario..." class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted">Acción</label>
+                        <select name="f_accion" class="form-select form-select-sm">
+                            <option value="">Todas</option>
+                            {% for acc in acciones_opciones %}
+                            <option value="{{ acc }}" {% if f_accion == acc %}selected{% endif %}>{{ acc }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted">Entidad</label>
+                        <select name="f_entidad" class="form-select form-select-sm">
+                            <option value="">Todas</option>
+                            {% for ent in entidades_opciones %}
+                            <option value="{{ ent }}" {% if f_entidad == ent %}selected{% endif %}>{{ ent }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end gap-2">
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i> Filtrar</button>
+                        <a href="{{ url_for('ver_historial') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-x-circle"></i> Limpiar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card historial-card">
+            <div class="card-body p-0">
+                <div class="historial-scroll">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 table-historial">
+                        <thead>
+                            <tr>
+                                <th class="text-center" style="width:150px">Fecha/Hora</th>
+                                <th style="width:100px">Usuario</th>
+                                <th style="width:120px">Acción</th>
+                                <th style="width:120px">Entidad</th>
+                                <th style="width:60px">ID</th>
+                                <th>Detalle</th>
+                                <th style="width:100px">IP</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if historial %}
+                                {% for h in historial %}
+                                <tr>
+                                    <td class="timestamp text-center">{{ h['fecha'] }}</td>
+                                    <td><span class="badge bg-secondary">{{ h['username'] }}</span></td>
+                                    <td><span class="badge badge-accion badge-{{ h['accion'].lower().split('_')[0] if '_' in h['accion'] else 'default' }}">{{ h['accion'] }}</span></td>
+                                    <td>{{ h['entidad'] or '-' }}</td>
+                                    <td class="text-center">{{ h['entidad_id'] or '-' }}</td>
+                                    <td>{{ h['detalle'] or '-' }}</td>
+                                    <td class="timestamp">{{ h['ip'] }}</td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-4 text-muted">
+                                        <i class="bi bi-inbox" style="font-size:2rem"></i>
+                                        <p class="mb-0">No hay registros en el historial</p>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+                </div>
+            </div>
+        </div>
+
+        {% if total_pages > 1 %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                    <a class="page-link" href="?page={{ page-1 }}{% if f_fecha_desde %}&f_fecha_desde={{ f_fecha_desde }}{% endif %}{% if f_fecha_hasta %}&f_fecha_hasta={{ f_fecha_hasta }}{% endif %}{% if f_usuario %}&f_usuario={{ f_usuario }}{% endif %}{% if f_accion %}&f_accion={{ f_accion }}{% endif %}{% if f_entidad %}&f_entidad={{ f_entidad }}{% endif %}">Anterior</a>
+                </li>
+                {% for p in range(1, total_pages + 1) %}
+                    {% if p >= page - 2 and p <= page + 2 %}
+                        <li class="page-item {% if p == page %}active{% endif %}">
+                            <a class="page-link" href="?page={{ p }}{% if f_fecha_desde %}&f_fecha_desde={{ f_fecha_desde }}{% endif %}{% if f_fecha_hasta %}&f_fecha_hasta={{ f_fecha_hasta }}{% endif %}{% if f_usuario %}&f_usuario={{ f_usuario }}{% endif %}{% if f_accion %}&f_accion={{ f_accion }}{% endif %}{% if f_entidad %}&f_entidad={{ f_entidad }}{% endif %}">{{ p }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                    <a class="page-link" href="?page={{ page+1 }}{% if f_fecha_desde %}&f_fecha_desde={{ f_fecha_desde }}{% endif %}{% if f_fecha_hasta %}&f_fecha_hasta={{ f_fecha_hasta }}{% endif %}{% if f_usuario %}&f_usuario={{ f_usuario }}{% endif %}{% if f_accion %}&f_accion={{ f_accion }}{% endif %}{% if f_entidad %}&f_entidad={{ f_entidad }}{% endif %}">Siguiente</a>
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+
+        <div class="mt-4 text-center text-muted small">
+            <p>El historial se retiene por 1 año. Los registros más antiguos se eliminan automáticamente.</p>
+        </div>
+    </div>
+    {% endblock %}
+</html>
