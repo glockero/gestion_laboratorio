@@ -1,0 +1,136 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-3">
+        <a href="{{ url_for('detalle_reparacion', id=r.id) }}" class="btn btn-light rounded-circle shadow-sm" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+            <h2 class="fw-bold mb-0 text-primary-color">Editar Reparacion #{{ r.id }}</h2>
+            <p class="text-muted mb-0">Actualiza los datos del equipo ingresado.</p>
+        </div>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-10 col-xl-8">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="card-header bg-white border-bottom p-4">
+                <h5 class="fw-bold text-dark mb-0"><i class="bi bi-pencil-square text-primary me-2"></i>Datos de la Reparacion</h5>
+            </div>
+            <div class="card-body p-4 p-md-5">
+                <form method="POST" action="{{ url_for('editar_reparacion', id=r.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="row g-4 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-secondary small">Fecha y Hora</label>
+                            <input type="text" name="fecha" class="form-control bg-light" value="{{ r.fecha }}" required {% if session.get('rol') != 'admin' %}readonly{% endif %}>
+                            <div class="form-text">
+                                {% if session.get('rol') != 'admin' %}
+                                Solo un administrador puede cambiar la fecha y hora de carga.
+                                {% else %}
+                                Formato: DD/MM/YYYY HH:MM
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-secondary small">Prioridad</label>
+                            <select name="urgente" class="form-select fw-bold">
+                                <option value="NO" class="text-secondary" {% if r.urgente == 'NO' %}selected{% endif %}>Normal</option>
+                                <option value="SI" class="text-danger" {% if r.urgente == 'SI' %}selected{% endif %}>URGENTE</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12"><hr class="text-muted opacity-25"></div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-secondary small">Sala <span class="text-danger">*</span></label>
+                            <select name="sala" id="editSelectSala" class="form-select" required>
+                                <option value="{{ r.sala }}" selected>{{ r.sala }}</option>
+                                {% for s in salas %}
+                                    {% if s.nombre != r.sala %}
+                                    <option value="{{ s.nombre }}">{{ s.nombre }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-secondary small">Familia</label>
+                            <select name="familia" id="editSelectFamilia" class="form-select">
+                                <option value="{{ r.familia or '' }}" selected>{{ r.familia or '' }}</option>
+                                {% for f in familias %}
+                                    {% if f.nombre != r.familia %}
+                                    <option value="{{ f.nombre }}">{{ f.nombre }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-bold text-secondary small">Equipo / Modelo <span class="text-danger">*</span></label>
+                            <select name="equipo" id="editSelectEquipo" class="form-select" required>
+                                <option value="{{ r.equipo }}" selected>{{ r.equipo }}</option>
+                                {% for e in equipos %}
+                                    {% if e.nombre != r.equipo %}
+                                    <option value="{{ e.nombre }}">{{ e.nombre }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-12"><hr class="text-muted opacity-25"></div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-secondary small">NPU</label>
+                            <input type="text" name="npu" class="form-control font-monospace" value="{{ r.npu or '' }}" autocomplete="off">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-secondary small">UID</label>
+                            <input type="text" name="uid" class="form-control font-monospace" value="{{ r.uid or '' }}" autocomplete="off">
+                        </div>
+
+                        <div class="col-12"><hr class="text-muted opacity-25"></div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-secondary small">Tecnico Asignado</label>
+                            <select name="tecnico_id" class="form-select">
+                                <option value="">-- Sin Asignar --</option>
+                                {% for t in tecnicos %}
+                                    <option value="{{ t.id }}" {% if r.tecnico_id == t.id %}selected{% endif %}>{{ t.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-bold text-secondary small">Observaciones</label>
+                            <textarea name="observaciones" class="form-control" rows="4">{{ r.observaciones or '' }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+                        <a href="{{ url_for('detalle_reparacion', id=r.id) }}" class="btn btn-light fw-bold text-secondary px-4">Cancelar</a>
+                        <button type="submit" class="btn btn-primary fw-bold px-5 shadow-sm">Guardar Cambios</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const tsConfig = {
+            create: true,
+            sortField: { field: 'text', direction: 'asc' },
+            placeholder: 'Buscar o escribir...'
+        };
+
+        new TomSelect('#editSelectSala', tsConfig);
+        new TomSelect('#editSelectFamilia', tsConfig);
+        new TomSelect('#editSelectEquipo', tsConfig);
+    });
+</script>
+{% endblock %}

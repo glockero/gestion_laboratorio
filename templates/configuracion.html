@@ -179,6 +179,37 @@
         color: #64748b;
         font-size: 0.85rem;
     }
+    .room-list-scroll {
+        max-height: 420px;
+        overflow: auto;
+        border-top: 1px solid #e2e8f0;
+    }
+    .room-list-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #f1f5f9;
+        background: #fff;
+    }
+    .room-list-row:hover {
+        background: #f8fafc;
+    }
+    .room-list-row:last-child {
+        border-bottom: none;
+    }
+    .room-list-form {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex: 1;
+        min-width: 0;
+    }
+    .room-list-name {
+        max-width: 100%;
+        font-weight: 600;
+    }
 
     /* --- EQUIPOS --- */
     .equipment-layout {
@@ -333,6 +364,32 @@
     /* Ajuste especial para tabla masiva */
     .table-responsive { scrollbar-width: thin; }
     .table-sm td, .table-sm th { padding: 0.5rem; vertical-align: middle; }
+    .config-table-scroll {
+        max-height: 420px;
+        min-height: 260px;
+        overflow: auto;
+    }
+    .config-table-scroll .table-responsive {
+        overflow: visible;
+    }
+    .config-table-scroll thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        box-shadow: inset 0 -1px 0 #cbd5e1;
+    }
+    .config-list-scroll {
+        max-height: 420px;
+        min-height: 220px;
+        overflow: auto;
+    }
+    .config-list-head {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+    }
 </style>
 
 <div class="settings-container">
@@ -358,6 +415,9 @@
             </button>
             <button class="nav-tab-custom" data-target="panel-usuarios">
                 <i class="bi bi-people-fill"></i> Usuarios
+            </button>
+            <button class="nav-tab-custom" data-target="panel-sistema">
+                <i class="bi bi-shield-check"></i> Sistema
             </button>
             <button class="nav-tab-custom" data-target="panel-reparaciones">
                 <i class="bi bi-database-down"></i> Base Reparaciones
@@ -577,11 +637,11 @@
             </div>
 
             {% if catalogos['salas'] %}
-            <div class="status-cards" id="roomContainer">
+            <div class="room-list-scroll" id="roomContainer">
                 {% for item in catalogos['salas'] %}
-                <div class="status-item-card room-item-card">
-                    <form method="POST" action="{{ url_for('editar_catalogo', tipo='salas', item_id=item.id) }}" class="catalog-item-form status-item-form">
-                        <input type="text" name="nombre" class="compact-input fw-medium m-0" value="{{ item.nombre }}" readonly required>
+                <div class="room-list-row room-item-card settings-row">
+                    <form method="POST" action="{{ url_for('editar_catalogo', tipo='salas', item_id=item.id) }}" class="catalog-item-form room-list-form m-0">
+                        <input type="text" name="nombre" class="compact-input room-list-name m-0" value="{{ item.nombre }}" readonly required>
                         <button type="button" class="action-btn btn-edit" title="Editar"><i class="bi bi-pencil"></i></button>
                         <button type="submit" class="action-btn save btn-save" title="Guardar"><i class="bi bi-check2-circle"></i></button>
                     </form>
@@ -780,6 +840,7 @@
                         <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-list-check text-primary me-2"></i>Usuarios Registrados</h6>
                     </div>
                     <div class="card-body p-0">
+                        <div class="config-table-scroll">
                         <div class="table-responsive">
                             <table class="table table-hover align-middle mb-0">
                                 <thead class="table-light">
@@ -880,6 +941,105 @@
                                 </tbody>
                             </table>
                         </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANEL BASE REPARACIONES -->
+    <div id="panel-sistema" class="config-panel">
+        <div class="row g-4">
+            <div class="col-lg-5">
+                <div class="settings-card h-100">
+                    <div class="settings-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-cloud-arrow-down me-2 text-primary"></i>Backups</h6>
+                        <span class="badge bg-light text-dark">{{ backups|length }} archivo(s)</span>
+                    </div>
+                    <div class="p-4">
+                        <div class="d-grid gap-2 mb-4">
+                            <a href="{{ url_for('crear_backup') }}" class="btn btn-primary fw-bold">
+                                <i class="bi bi-save2 me-2"></i>Crear Backup Ahora
+                            </a>
+                            <a href="{{ url_for('descargar_backup') }}" class="btn btn-outline-primary fw-bold">
+                                <i class="bi bi-download me-2"></i>Descargar Base Actual
+                            </a>
+                        </div>
+                        <div class="alert alert-light border small mb-3">
+                            <div><strong>Automático:</strong> cada 24 horas</div>
+                            <div><strong>Ubicación:</strong> <code>backups/</code></div>
+                        </div>
+
+                        <h6 class="fw-bold text-secondary mb-3">Archivos generados</h6>
+                        <div class="config-list-scroll border rounded bg-white">
+                            <div class="config-list-head d-flex justify-content-between align-items-center px-3 py-2 small fw-bold text-secondary text-uppercase" style="letter-spacing: 0.04em;">
+                                <span>Archivo / fecha</span>
+                                <span>Acciones</span>
+                            </div>
+                        <div class="d-flex flex-column gap-2 p-2">
+                            {% for backup in backups %}
+                            <div class="border rounded p-3 d-flex justify-content-between align-items-start gap-2 bg-light-subtle">
+                                <div class="small">
+                                    <div class="fw-bold text-dark">{{ backup.filename }}</div>
+                                    <div class="text-muted">{{ backup.modified }} · {{ backup.size_kb }} KB</div>
+                                </div>
+                                <div class="d-flex gap-1">
+                                    <a href="{{ url_for('descargar_backup_archivo', filename=backup.filename) }}" class="btn btn-sm btn-outline-primary" title="Descargar">
+                                        <i class="bi bi-download"></i>
+                                    </a>
+                                    <a href="{{ url_for('eliminar_backup', filename=backup.filename) }}" class="btn btn-sm btn-outline-danger" title="Eliminar">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="text-muted small">Todavía no hay backups guardados.</div>
+                            {% endfor %}
+                        </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-7">
+                <div class="settings-card h-100">
+                    <div class="settings-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-clock-history me-2 text-primary"></i>Historial reciente</h6>
+                        <div class="d-flex gap-2">
+                            <a href="{{ url_for('ver_historial') }}" class="btn btn-sm btn-outline-primary fw-bold">Ver historial completo</a>
+                            <a href="{{ url_for('limpiar_historial') }}" class="btn btn-sm btn-outline-danger fw-bold">Limpiar > 1 año</a>
+                        </div>
+                    </div>
+                    <div class="p-0">
+                        <div class="config-table-scroll">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0 align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="px-3 py-2">Fecha</th>
+                                        <th class="py-2">Usuario</th>
+                                        <th class="py-2">Acción</th>
+                                        <th class="py-2">Detalle</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in historial_reciente %}
+                                    <tr>
+                                        <td class="px-3 small text-muted">{{ item.fecha }}</td>
+                                        <td class="small fw-bold">{{ item.username }}</td>
+                                        <td class="small"><span class="badge bg-secondary">{{ item.accion }}</span></td>
+                                        <td class="small text-muted">{{ item.detalle or '-' }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4 text-muted">Todavía no hay acciones registradas.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -914,17 +1074,27 @@
             <div class="p-4 bg-white">
                 <div class="alert alert-info border-0 shadow-sm mb-4">
                     <h6 class="fw-bold"><i class="bi bi-info-circle-fill me-2"></i>Formato de Sincronización</h6>
-                    <p class="small mb-2">Para subir una base nueva, el archivo CSV debe tener <strong>exactamente</strong> estas columnas en la primera fila:</p>
-                    <code class="d-block p-3 bg-light rounded text-dark border font-monospace text-center" style="font-size: 0.85rem;">
+                    <p class="small mb-2">Para subir una base nueva, el archivo CSV debe tener estas columnas en la primera fila:</p>
+                    <code class="d-block p-3 bg-light rounded text-dark border font-monospace text-center mb-2" style="font-size: 0.85rem;">
                         fecha, sala, uid, npu, FAMILIA, equipo, urgente, tecnico, estados de reparacion, observaciones
+                    </code>
+                    <p class="small mb-2 text-muted">Columnas adicionales opcionales para importar fechas de cada estado y observaciones resumidas:</p>
+                    <code class="d-block p-2 bg-light rounded text-secondary border font-monospace text-center mb-0" style="font-size: 0.8rem;">
+                        F. Pendiente, F. En Rep., F. Reparado, F. Sin Rep., Obs.
                     </code>
                 </div>
                 
-                <form id="formCsvReparaciones" method="POST" action="{{ url_for('cargar_csv') }}" enctype="multipart/form-data" class="d-flex flex-column flex-md-row gap-3 align-items-md-center mb-4">
-                    <input type="file" name="archivo_csv" class="form-control" accept=".csv" required>
-                    <button type="button" class="btn btn-primary text-nowrap fw-bold px-4 shadow-sm" onclick="const f = document.getElementById('formCsvReparaciones'); if(f.checkValidity()){ showConfirmModal('Sincronizar Reparaciones', '¡ATENCIÓN! Esto borrará la base actual y la reemplazará por los datos del CSV. ¿Continuar?', function(){ f.submit(); }, true, 'Sí, Sincronizar'); } else { f.reportValidity(); }">
-                        <i class="bi bi-cloud-upload me-2"></i>Sincronizar CSV
-                    </button>
+                <form id="formCsvReparaciones" method="POST" action="{{ url_for('cargar_csv') }}" enctype="multipart/form-data" class="mb-4">
+                    <div class="d-flex flex-column flex-md-row gap-3 align-items-md-center mb-3">
+                        <input type="file" id="inputCsvReparaciones" name="archivo_csv" class="form-control" accept=".csv" required>
+                        <button type="button" id="btnPreviewCsv" class="btn btn-outline-primary text-nowrap fw-bold bg-white" disabled>
+                            <i class="bi bi-eye me-1"></i>Vista Previa
+                        </button>
+                        <button type="button" class="btn btn-primary text-nowrap fw-bold px-4 shadow-sm" onclick="const f = document.getElementById('formCsvReparaciones'); if(f.checkValidity()){ showConfirmModal('Sincronizar Reparaciones', '¡ATENCIÓN! Esto borrará la base actual y la reemplazará por los datos del CSV. ¿Continuar?', function(){ f.submit(); }, true, 'Sí, Sincronizar'); } else { f.reportValidity(); }">
+                            <i class="bi bi-cloud-upload me-2"></i>Sincronizar CSV
+                        </button>
+                    </div>
+                    <div id="previewAlertContainer" class="d-none"></div>
                 </form>
 
                 <h6 class="fw-bold text-secondary mb-3 mt-4 border-top pt-4">Datos Actuales en Base</h6>
@@ -990,6 +1160,43 @@
 
 </div>
 
+<!-- Modal Vista Previa CSV -->
+<div class="modal fade" id="previewCsvModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary bg-opacity-10 px-4 py-3">
+                <h6 class="modal-title fw-bold text-primary mb-0" id="previewCsvTitle">
+                    <i class="bi bi-table me-2"></i>Vista Previa de Importación
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div id="previewLoading" class="text-center py-5">
+                    <div class="spinner-border text-primary mb-3" role="status"></div>
+                    <p class="text-muted mb-0">Analizando archivo CSV...</p>
+                </div>
+                <div id="previewError" class="alert alert-danger d-none"></div>
+                <div id="previewSummary" class="d-none">
+                    <div class="d-flex flex-wrap gap-3 mb-4" id="previewStats"></div>
+                    <div class="table-responsive border rounded" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-sm table-hover mb-0" style="font-size: 0.75rem; white-space: nowrap;">
+                            <thead class="table-light" style="position: sticky; top: 0; z-index: 1;" id="previewTableHead"></thead>
+                            <tbody id="previewTableBody"></tbody>
+                        </table>
+                    </div>
+                    <p class="small text-muted mt-3 mb-0 text-center" id="previewMoreHint"></p>
+                </div>
+            </div>
+            <div class="modal-footer bg-light px-4 py-2">
+                <button type="button" class="btn btn-secondary btn-sm fw-bold" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-primary btn-sm fw-bold" id="btnImportFromPreview">
+                    <i class="bi bi-cloud-upload me-1"></i>Sincronizar Ahora
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal de Confirmación Genérico Modificado -->
 <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered" style="max-width: 380px;">
@@ -1002,7 +1209,6 @@
                 <p class="text-muted small mb-4" id="confirmModalBody">¿Estás seguro de realizar esta operación?</p>
                 <div class="d-flex gap-2">
                     <button type="button" class="btn btn-light flex-grow-1 fw-bold text-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <!-- Eliminamos el <form> interno para poder usar callbacks de JS -->
                     <button type="button" class="btn btn-primary flex-grow-1 w-100 fw-bold shadow-sm" id="confirmModalBtn">Confirmar</button>
                 </div>
             </div>
@@ -1129,6 +1335,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 const form = document.createElement('form');
                 form.method = 'POST';
                 form.action = modalConfirmCallback;
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrf_token';
+                csrfInput.value = getCsrfToken();
+                form.appendChild(csrfInput);
                 document.body.appendChild(form);
                 form.submit();
             } else if (typeof modalConfirmCallback === 'function') {
@@ -1362,6 +1573,167 @@ document.addEventListener('DOMContentLoaded', function () {
     const equipmentEmptyMessage = document.getElementById('equipmentEmptyMessage');
     const equipmentCounterNum = document.getElementById('equipmentCounterNum');
 
+    // ===========================
+    // VISTA PREVIA DE CSV
+    // ===========================
+    const inputCsv = document.getElementById('inputCsvReparaciones');
+    const btnPreview = document.getElementById('btnPreviewCsv');
+    const previewModalEl = document.getElementById('previewCsvModal');
+    const previewModal = previewModalEl ? new bootstrap.Modal(previewModalEl) : null;
+    const formReparaciones = document.getElementById('formCsvReparaciones');
+
+    if (inputCsv && btnPreview && previewModal) {
+        inputCsv.addEventListener('change', function() {
+            btnPreview.disabled = !this.files || this.files.length === 0;
+        });
+
+        btnPreview.addEventListener('click', function() {
+            const file = inputCsv.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('archivo_csv', file);
+
+            document.getElementById('previewLoading').classList.remove('d-none');
+            document.getElementById('previewError').classList.add('d-none');
+            document.getElementById('previewSummary').classList.add('d-none');
+            previewModal.show();
+
+            fetch('{{ url_for("preview_reparaciones_csv") }}', {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': getCsrfToken() }
+            })
+            .then(function(r) { return r.json().then(function(data) { return {ok: r.ok, data: data}; }); })
+            .then(function(result) {
+                document.getElementById('previewLoading').classList.add('d-none');
+                var ok = result.ok;
+                var data = result.data;
+
+                if (!ok) {
+                    var errDiv = document.getElementById('previewError');
+                    errDiv.textContent = data.error || 'Error desconocido al analizar el archivo.';
+                    errDiv.classList.remove('d-none');
+                    return;
+                }
+
+                var summaryDiv = document.getElementById('previewSummary');
+                summaryDiv.classList.remove('d-none');
+
+                var statsDiv = document.getElementById('previewStats');
+                var badges = [];
+                badges.push('<span class="badge bg-primary fs-6"><i class="bi bi-file-earmark-spreadsheet me-1"></i>' + data.total_rows + ' filas totales</span>');
+                badges.push('<span class="badge bg-success fs-6"><i class="bi bi-check-circle me-1"></i>' + data.valid_rows + ' validas</span>');
+                if (data.skipped_rows > 0) {
+                    badges.push('<span class="badge bg-warning text-dark fs-6"><i class="bi bi-exclamation-triangle me-1"></i>' + data.skipped_rows + ' omitidas</span>');
+                }
+                statsDiv.innerHTML = badges.join('');
+
+                // Renderizar cabecera de tabla
+                var thead = document.getElementById('previewTableHead');
+                var headHtml = '<tr><th>#</th>';
+                data.headers.forEach(function(h) {
+                    headHtml += '<th>' + escapeHtml(formatHeader(h)) + '</th>';
+                });
+                headHtml += '<th>Estado</th></tr>';
+                thead.innerHTML = headHtml;
+
+                var tbody = document.getElementById('previewTableBody');
+                var bodyHtml = '';
+                data.preview.forEach(function(row, i) {
+                    var rowClass = row.valid ? '' : ' class="table-warning"';
+                    bodyHtml += '<tr' + rowClass + '>';
+                    bodyHtml += '<td class="text-muted">' + (i + 1) + '</td>';
+                    bodyHtml += '<td><code class="fw-bold">' + escapeHtml(row.fecha) + '</code></td>';
+                    bodyHtml += '<td>' + escapeHtml(row.sala) + '</td>';
+                    bodyHtml += '<td class="font-monospace">' + escapeHtml(row.uid) + '</td>';
+                    bodyHtml += '<td class="font-monospace text-primary fw-bold">' + escapeHtml(row.npu) + '</td>';
+                    bodyHtml += '<td>' + escapeHtml(row.familia) + '</td>';
+                    bodyHtml += '<td class="fw-bold">' + escapeHtml(row.equipo) + '</td>';
+                    bodyHtml += '<td>' + (row.urgente === 'SI' ? '<span class="badge bg-danger">SI</span>' : row.urgente) + '</td>';
+                    bodyHtml += '<td>' + escapeHtml(row.tecnico) + '</td>';
+                    bodyHtml += '<td><span class="badge bg-secondary">' + escapeHtml(row.estado) + '</span></td>';
+                    bodyHtml += '<td class="text-muted">' + escapeHtml(row.fecha_pendiente || '--') + '</td>';
+                    bodyHtml += '<td class="text-muted">' + escapeHtml(row.fecha_en_reparacion || '--') + '</td>';
+                    bodyHtml += '<td class="text-muted">' + escapeHtml(row.fecha_reparado || '--') + '</td>';
+                    bodyHtml += '<td class="text-muted">' + escapeHtml(row.fecha_sin_reparacion || '--') + '</td>';
+                    bodyHtml += '<td class="text-truncate" style="max-width:120px;" title="' + escapeHtml(row.observaciones) + '">' + (row.observaciones.length > 40 ? escapeHtml(row.observaciones.substring(0,40)) + '...' : escapeHtml(row.observaciones)) + '</td>';
+
+                    if (row.valid) {
+                        bodyHtml += '<td><span class="badge bg-success"><i class="bi bi-check"></i></span></td>';
+                    } else {
+                        bodyHtml += '<td><span class="badge bg-warning text-dark" title="' + escapeHtml(row.warnings.join(', ')) + '"><i class="bi bi-exclamation-triangle"></i> ' + escapeHtml(row.warnings.join(', ')) + '</span></td>';
+                    }
+                    bodyHtml += '</tr>';
+                });
+                tbody.innerHTML = bodyHtml;
+
+                var moreHint = document.getElementById('previewMoreHint');
+                if (data.has_more) {
+                    moreHint.textContent = 'Mostrando las primeras ' + data.preview_limit + ' filas de ' + data.total_rows + ' totales.';
+                    moreHint.classList.remove('d-none');
+                } else {
+                    moreHint.classList.add('d-none');
+                }
+            })
+            .catch(function(err) {
+                document.getElementById('previewLoading').classList.add('d-none');
+                var errDiv = document.getElementById('previewError');
+                errDiv.textContent = 'Error de red al analizar el archivo: ' + err.message;
+                errDiv.classList.remove('d-none');
+            });
+        });
+
+        document.getElementById('btnImportFromPreview').addEventListener('click', function() {
+            previewModal.hide();
+            showConfirmModal(
+                'Sincronizar Reparaciones',
+                '¡ATENCIÓN! Esto borrará la base actual (' + document.getElementById('repCounterNum').textContent + ' registros) y la reemplazará por los datos del CSV. ¿Continuar?',
+                function() { formReparaciones.submit(); },
+                true,
+                'Sí, Sincronizar'
+            );
+        });
+
+        previewModalEl.addEventListener('hidden.bs.modal', function() {
+            document.getElementById('previewLoading').classList.add('d-none');
+            document.getElementById('previewError').classList.add('d-none');
+            document.getElementById('previewSummary').classList.add('d-none');
+        });
+    }
+
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(text || ''));
+        return div.innerHTML;
+    }
+
+    function formatHeader(h) {
+        var display = {
+            'fecha': 'Fecha',
+            'sala': 'Sala',
+            'uid': 'UID',
+            'npu': 'NPU',
+            'familia': 'Familia',
+            'equipo': 'Equipo',
+            'urgente': 'Urgente',
+            'tecnico': 'Técnico',
+            'estados de reparacion': 'Estado',
+            'estado': 'Estado',
+            'observaciones': 'Observaciones',
+            'f. pendiente': 'F. Pendiente',
+            'fecha_pendiente': 'F. Pendiente',
+            'f. en rep.': 'F. En Rep.',
+            'fecha_en_reparacion': 'F. En Rep.',
+            'f. reparado': 'F. Reparado',
+            'fecha_reparado': 'F. Reparado',
+            'f. sin rep.': 'F. Sin Rep.',
+            'fecha_sin_reparacion': 'F. Sin Rep.',
+            'obs.': 'Obs.'
+        };
+        return display[h] || h;
+    }
+    
     if (equipmentSearch) {
         equipmentSearch.addEventListener('input', function() {
             const query = this.value.toLowerCase().trim();

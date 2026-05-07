@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Gestión de Reparaciones - Laboratorio Técnico</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -241,6 +242,10 @@
                 <i class="bi bi-gear"></i>
                 <span>SISTEMA</span>
             </a>
+            <a href="/configuracion/historial" class="sidebar-link {% if request.path == '/configuracion/historial' %}active{% endif %}">
+                <i class="bi bi-clock-history"></i>
+                <span>HISTORIAL</span>
+            </a>
             {% endif %}
         </div>
 
@@ -301,6 +306,26 @@
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        function getCsrfToken() {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            return meta ? meta.getAttribute('content') : '';
+        }
+
+        function ensurePostFormsHaveCsrf(root = document) {
+            const token = getCsrfToken();
+            if (!token) return;
+            root.querySelectorAll('form[method="POST"], form[method="post"]').forEach(form => {
+                let input = form.querySelector('input[name="csrf_token"]');
+                if (!input) {
+                    input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'csrf_token';
+                    form.prepend(input);
+                }
+                input.value = token;
+            });
+        }
+
         const sidebarToggler = document.getElementById('sidebarToggler');
         const sidebar = document.getElementById('sidebar');
         
@@ -344,7 +369,7 @@
             
             toastContainer.insertAdjacentHTML('beforeend', toastHTML);
             const toastElement = document.getElementById(toastId);
-            const toast = new bootstrap.Toast(toastElement, { delay: 4000 });
+            const toast = new bootstrap.Toast(toastElement, { delay: 4000, autohide: true });
             toast.show();
             
             toastElement.addEventListener('hidden.bs.toast', () => {
@@ -353,6 +378,7 @@
         }
         
         document.addEventListener('DOMContentLoaded', () => {
+            ensurePostFormsHaveCsrf();
             setTimeout(() => {
                 const alerts = document.querySelectorAll('#flash-alerts .alert');
                 alerts.forEach(alert => {

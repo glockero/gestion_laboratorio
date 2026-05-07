@@ -203,6 +203,9 @@
                         <button id="btnDevolver" class="btn btn-outline-danger btn-sm w-100 fw-bold" onclick="abrirModalDevolucion()" style="display: {% if r.tecnico_id %}block{% else %}none{% endif %};">
                             <i class="bi bi-arrow-return-left me-1"></i> Devolver Reparación
                         </button>
+                        <div id="repairLockedNotice" class="alert alert-warning small py-2 px-3 mt-2 mb-0" style="display:none;">
+                            <i class="bi bi-lock-fill me-1"></i> Reparación cerrada: solo puedes agregar comentarios adicionales.
+                        </div>
                     </div>
 
                     <div class="col-12"><hr class="text-muted opacity-25 mt-3 mb-3"></div>
@@ -292,6 +295,29 @@
     </div>
 </div>
 
+<!-- MODAL PARA COMENTARIO OBLIGATORIO DE ESTADO -->
+<div class="modal fade" id="modalComentarioEstado" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-warning bg-opacity-10 border-bottom">
+        <h5 class="modal-title fw-bold text-dark"><i class="bi bi-chat-left-text me-2 text-warning"></i>Comentario obligatorio</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <p class="text-muted mb-3">Para cambiar este estado debes dejar una aclaración.</p>
+        <div class="mb-3">
+            <label class="form-label fw-bold">Comentario <span class="text-danger">*</span></label>
+            <textarea id="comentarioEstado" class="form-control" rows="3" placeholder="Ej: equipo reparado y probado, pendiente por repuesto, sin reparación por placa irreparable..." required></textarea>
+        </div>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary fw-bold" id="btnConfirmarComentarioEstado">Confirmar cambio</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL PARA DEVOLVER REPARACIÓN -->
 <div class="modal fade" id="modalDevolucion" tabindex="-1" aria-labelledby="modalDevolucionLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
@@ -320,6 +346,7 @@
 <div class="modal fade text-start" id="modalEditarReparacion" tabindex="-1" aria-labelledby="modalEditarLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <form method="POST" action="/reparacion/editar/{{ r.id }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
                 <div class="modal-header bg-white border-bottom p-4">
                     <h5 class="fw-bold text-dark mb-0" id="modalEditarLabel">
@@ -493,14 +520,48 @@
 <script>
     const reparacionId = {{ r.id }};
     const container = document.getElementById('comentariosContainer');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const noCommentsMsg = document.getElementById('noCommentsMsg');
     const alertaEstado = document.getElementById('alertaEstado');
     const btnDevolver = document.getElementById('btnDevolver');
+    const repairLockedNotice = document.getElementById('repairLockedNotice');
+    const quickUrgencia = document.getElementById('quickUrgencia');
+    const isAdmin = {{ 'true' if session.get('rol') == 'admin' else 'false' }};
+    const isTecnico = {{ 'true' if session.get('rol') == 'tecnico' else 'false' }};
 
     let lastTecnico = "{{ r.tecnico_id or '' }}";
     let lastEstado = "{{ r.estado or '' }}";
     let tsTecnico, tsEstado;
     let modalDevolucionInstancia;
+    let modalComentarioEstadoInstancia;
+    let pendingEstadoCambio = null;
+
+    function notify(message, type = 'info') {
+        if (typeof showToast === 'function') {
+            showToast(message, type);
+            return;
+        }
+        console[type === 'danger' ? 'error' : 'log'](message);
+    }
+
+    async function apiJson(url, options) {
+        const response = await fetch(url, options);
+        const contentType = response.headers.get('content-type') || '';
+
+        if (response.redirected || !contentType.includes('application/json')) {
+            const text = await response.text();
+            if (response.redirected || text.includes('/login') || text.includes('Ingreso Laboratorio')) {
+                throw new Error('Tu sesion ya no es valida. Recarga la pagina e inicia sesion de nuevo.');
+            }
+            throw new Error(`Respuesta inesperada del servidor (${response.status}).`);
+        }
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || `Error del servidor (${response.status}).`);
+        }
+        return data;
+    }
 
     function inyectarBurbuja(timestamp, texto, tipo = 'normal') {
         if (noCommentsMsg) noCommentsMsg.remove();
@@ -522,6 +583,19 @@
     }
 
     function actualizarVisualizacionCandado() {
+        const reparacionCerradaParaTecnico = isTecnico && (lastEstado || '').toUpperCase().includes('REPARADO');
+
+        if (reparacionCerradaParaTecnico) {
+            if (tsTecnico) tsTecnico.disable();
+            if (tsEstado) tsEstado.disable();
+            if (quickUrgencia) quickUrgencia.disabled = true;
+            alertaEstado.style.display = 'none';
+            btnDevolver.style.display = 'none';
+            if (repairLockedNotice) repairLockedNotice.style.display = 'block';
+            return;
+        }
+
+        if (repairLockedNotice) repairLockedNotice.style.display = 'none';
         if (!lastTecnico || lastTecnico === "None") {
             tsEstado.disable();
             alertaEstado.style.display = 'inline-block';
@@ -531,6 +605,26 @@
             alertaEstado.style.display = 'none';
             btnDevolver.style.display = 'block';
         }
+
+        if (!isAdmin && tsTecnico) {
+            // Respeta el esquema actual: técnico no toma control total del selector.
+        }
+        if (quickUrgencia) quickUrgencia.disabled = false;
+    }
+
+    function estadoRequiereComentario(estado) {
+        const upper = (estado || '').trim().toUpperCase();
+        return upper.includes('REPARADO') || upper.includes('PEND') || upper.includes('SIN REPARACION');
+    }
+
+    function abrirModalComentarioEstado(nuevoEstado) {
+        pendingEstadoCambio = nuevoEstado;
+        const textarea = document.getElementById('comentarioEstado');
+        if (textarea) textarea.value = '';
+        if (!modalComentarioEstadoInstancia) {
+            modalComentarioEstadoInstancia = new bootstrap.Modal(document.getElementById('modalComentarioEstado'));
+        }
+        modalComentarioEstadoInstancia.show();
     }
 
     // --- COMENTARIO NORMAL ---
@@ -545,17 +639,22 @@
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
 
         try {
-            const response = await fetch(`/api/reparacion/${reparacionId}/comentario`, {
+            const data = await apiJson(`/api/reparacion/${reparacionId}/comentario`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, 'X-CSRF-Token': csrfToken },
+                credentials: 'same-origin',
                 body: JSON.stringify({ comentario: text })
             });
-            const data = await response.json();
             if (data.success) {
                 inyectarBurbuja(data.timestamp, data.texto, 'normal');
                 input.value = '';
-            } else { alert(data.error); }
-        } catch (error) { alert('Problema de conexión.'); } 
+                notify('Comentario agregado correctamente.', 'success');
+            } else {
+                notify(data.error || 'No se pudo agregar el comentario.', 'danger');
+            }
+        } catch (error) {
+            notify(error.message || 'Problema de conexión.', 'danger');
+        }
         finally { btn.disabled = false; btn.innerHTML = '<i class="bi bi-send-fill me-2"></i>Enviar'; }
     }
 
@@ -571,7 +670,7 @@
     async function confirmarDevolucion() {
         const motivo = document.getElementById('motivoDevolucion').value.trim();
         if (!motivo) {
-            alert('Por favor, ingresá el motivo de la devolución.');
+            notify('Por favor, ingresa el motivo de la devolucion.', 'warning');
             return;
         }
 
@@ -580,12 +679,12 @@
         btn.innerHTML = 'Procesando...';
 
         try {
-            const response = await fetch(`/api/reparacion/${reparacionId}/devolver`, {
+            const data = await apiJson(`/api/reparacion/${reparacionId}/devolver`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, 'X-CSRF-Token': csrfToken },
+                credentials: 'same-origin',
                 body: JSON.stringify({ comentario: motivo })
             });
-            const data = await response.json();
 
             if (data.success) {
                 // Actualizar interfaz visual
@@ -601,12 +700,11 @@
                 
                 modalDevolucionInstancia.hide();
                 actualizarVisualizacionCandado();
-            } else {
-                alert(data.error);
+                notify('Reparacion devuelta correctamente.', 'success');
             }
         } catch (error) {
             console.error(error);
-            alert('Error de conexión.');
+            notify(error.message || 'Error de conexion.', 'danger');
         } finally {
             btn.disabled = false;
             btn.innerHTML = 'Confirmar Devolución';
@@ -619,12 +717,12 @@
         tsEstado.disable(); // Pausamos el estado un segundo
         
         try {
-            const response = await fetch(`/api/reparacion/${reparacionId}/tecnico`, {
+            const data = await apiJson(`/api/reparacion/${reparacionId}/tecnico`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, 'X-CSRF-Token': csrfToken },
+                credentials: 'same-origin',
                 body: JSON.stringify({ tecnico_id: tecnicoId })
             });
-            const data = await response.json();
 
             if (data.success) {
                 lastTecnico = tecnicoId;
@@ -641,28 +739,28 @@
                     lastEstado = estadoDeseado;
                     
                     // 2. Le aviso a la base de datos por atrás
-                    const resEst = await fetch(`/api/reparacion/${reparacionId}/estado`, {
+                    const dataEst = await apiJson(`/api/reparacion/${reparacionId}/estado`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, 'X-CSRF-Token': csrfToken },
+                        credentials: 'same-origin',
                         body: JSON.stringify({ estado: estadoDeseado })
                     });
-                    
-                    if (resEst.ok) {
-                        const dataEst = await resEst.json();
-                        if (dataEst.success) {
-                            inyectarBurbuja(dataEst.timestamp, dataEst.texto, 'sistema');
-                            const diaCorto = dataEst.timestamp.split(' ')[0];
-                            document.getElementById('timeEnRep').innerText = diaCorto;
-                        }
+
+                    if (dataEst.success) {
+                        inyectarBurbuja(dataEst.timestamp, dataEst.texto, 'sistema');
+                        const diaCorto = dataEst.timestamp.split(' ')[0];
+                        document.getElementById('timeEnRep').innerText = diaCorto;
                     }
                 }
+                notify(tecnicoId ? 'Tecnico actualizado correctamente.' : 'Tecnico desasignado correctamente.', 'success');
             } else {
                 tsTecnico.setValue(lastTecnico, true);
-                alert(data.error || 'Error al cambiar el tecnico.');
+                notify(data.error || 'Error al cambiar el tecnico.', 'danger');
             }
         } catch (error) {
             console.error(error);
             tsTecnico.setValue(lastTecnico, true);
+            notify(error.message || 'Error al cambiar el tecnico.', 'danger');
         } finally {
             tsTecnico.enable();
             actualizarVisualizacionCandado(); 
@@ -670,15 +768,20 @@
     }
 
     // --- API ESTADO ---
-    async function actualizarEstadoAPI(nuevoEstado) {
+    async function actualizarEstadoAPI(nuevoEstado, comentario = '') {
+        if (estadoRequiereComentario(nuevoEstado) && !comentario) {
+            abrirModalComentarioEstado(nuevoEstado);
+            return;
+        }
+
         tsEstado.disable();
         try {
-            const response = await fetch(`/api/reparacion/${reparacionId}/estado`, {
+            const data = await apiJson(`/api/reparacion/${reparacionId}/estado`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ estado: nuevoEstado })
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, 'X-CSRF-Token': csrfToken },
+                credentials: 'same-origin',
+                body: JSON.stringify({ estado: nuevoEstado, comentario })
             });
-            const data = await response.json();
             
             if (data.success) {
                 lastEstado = nuevoEstado;
@@ -690,11 +793,13 @@
                 else if(upperE.includes('EN REPARACION')) document.getElementById('timeEnRep').innerText = diaCorto;
                 else if(upperE.includes('SIN REPARACION')) document.getElementById('timeSinRep').innerText = diaCorto;
                 else if(upperE.includes('REPARADO')) document.getElementById('timeRep').innerText = diaCorto;
+                notify('Estado actualizado correctamente.', 'success');
             } else {
                 tsEstado.setValue(lastEstado, true);
             }
         } catch (error) {
             tsEstado.setValue(lastEstado, true);
+            notify(error.message || 'Error al cambiar el estado.', 'danger');
         } finally {
             actualizarVisualizacionCandado();
         }
@@ -716,14 +821,19 @@
         }
 
         try {
-            const response = await fetch(`/api/reparacion/${reparacionId}/prioridad`, {
+            const data = await apiJson(`/api/reparacion/${reparacionId}/prioridad`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, 'X-CSRF-Token': csrfToken },
+                credentials: 'same-origin',
                 body: JSON.stringify({ urgente: nuevaPrioridad })
             });
-            const data = await response.json();
-            if (data.success) inyectarBurbuja(data.timestamp, data.texto, 'sistema');
-        } catch (error) {} 
+            if (data.success) {
+                inyectarBurbuja(data.timestamp, data.texto, 'sistema');
+                notify('Prioridad actualizada correctamente.', 'success');
+            }
+        } catch (error) {
+            notify(error.message || 'Error al cambiar la prioridad.', 'danger');
+        }
         finally { selectElement.disabled = false; }
     }
 
@@ -750,6 +860,33 @@
                 actualizarEstadoAPI(val);
             }
         });
+
+        const estadoModalEl = document.getElementById('modalComentarioEstado');
+        if (estadoModalEl) {
+            estadoModalEl.addEventListener('hidden.bs.modal', function () {
+                if (pendingEstadoCambio) {
+                    tsEstado.setValue(lastEstado, true);
+                    pendingEstadoCambio = null;
+                }
+            });
+        }
+
+        const confirmarComentarioEstadoBtn = document.getElementById('btnConfirmarComentarioEstado');
+        if (confirmarComentarioEstadoBtn) {
+            confirmarComentarioEstadoBtn.addEventListener('click', async function() {
+                const textarea = document.getElementById('comentarioEstado');
+                const comentario = textarea.value.trim();
+                if (!comentario) {
+                    notify('Debes escribir un comentario para ese estado.', 'warning');
+                    return;
+                }
+
+                const estadoPendiente = pendingEstadoCambio;
+                pendingEstadoCambio = null;
+                if (modalComentarioEstadoInstancia) modalComentarioEstadoInstancia.hide();
+                await actualizarEstadoAPI(estadoPendiente, comentario);
+            });
+        }
 
         actualizarVisualizacionCandado();
         container.scrollTop = container.scrollHeight;
