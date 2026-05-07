@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: db_laboratorio
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lab_user
+      POSTGRES_PASSWORD: lab_password
+      POSTGRES_DB: laboratorio_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  laboratorio-app:
+    build: .
+    container_name: app_laboratorio
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+    volumes:
+      - ./backups:/app/backups
+      - ./equipos.csv:/app/equipos.csv
+      - ./familias.csv:/app/familias.csv
+      - ./reparaciones.csv:/app/reparaciones.csv
+    environment:
+      - FLASK_ENV=production
+      - TZ=America/Argentina/Buenos_Aires
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=lab_user
+      - DB_PASSWORD=lab_password
+      - DB_NAME=laboratorio_db
+
+volumes:
+  postgres_data:

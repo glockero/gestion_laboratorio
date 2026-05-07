@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+.env
+.git/
+.gitignore
+GEMINI.md
+AGENTS.md
+.geminiignore
+test-1.txt
+app (copia).py
