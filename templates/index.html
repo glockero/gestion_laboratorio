@@ -370,6 +370,10 @@
                     <!-- 3 --> <th>Equipo y Sala</th>
                     <!-- 4 --> <th>Técnico</th>
                     <!-- 5 --> <th>Estado</th>
+                    <!-- 5.5 CONDICIONAL EN REPARACION -->
+                    {% if estado_actual == 'EN_REPARACION' %}
+                        <th class="text-primary"><i class="bi bi-calendar me-1"></i>Inicio Rep.</th>
+                    {% endif %}
                     <!-- 6 CONDICIONAL -->
                     {% if estado_actual == 'REPARADOS' %}
                         <th class="text-success"><i class="bi bi-calendar-check me-1"></i>Fecha Rep.</th>
@@ -444,8 +448,15 @@
                             </div>
                         {% endif %}
                     </td>
-                    
-                    <!-- 6 CONDICIONAL --> 
+
+                    <!-- 5.5 CONDICIONAL EN REPARACION -->
+                    {% if estado_actual == 'EN_REPARACION' %}
+                        <td class="text-primary fw-bold align-middle" style="font-size: 0.85rem; white-space: nowrap;">
+                            {{ r.fecha_en_reparacion.split(' ')[0] if r.fecha_en_reparacion else '--' }}
+                        </td>
+                    {% endif %}
+
+                    <!-- 6 CONDICIONAL -->
                     {% if estado_actual == 'REPARADOS' %}
                         <td class="text-success fw-bold align-middle" style="font-size: 0.85rem;">
                             {{ r.fecha_reparado.split(' ')[0] if r.fecha_reparado else '--' }}

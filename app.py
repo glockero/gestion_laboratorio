@@ -555,7 +555,12 @@ def index():
         final_where_clauses.extend(["UPPER(r.estado) NOT LIKE 'REPARADO%'", "UPPER(r.estado) NOT LIKE 'SIN REPARACION%'", "UPPER(r.estado) != 'PEND. DE REVISION'", "UPPER(r.estado) != 'EN REPARACION'"])
 
     # Determinar qué columna de fecha usar para el ordenamiento
-    order_col = "r.fecha_reparado" if estado_actual == 'REPARADOS' else "r.fecha"
+    if estado_actual == 'REPARADOS':
+        order_col = "r.fecha_reparado"
+    elif estado_actual == 'EN_REPARACION':
+        order_col = "r.fecha_en_reparacion"
+    else:
+        order_col = "r.fecha"
     
     final_where_sql = (' WHERE ' + ' AND '.join(final_where_clauses)) if final_where_clauses else ''
     total_reparaciones = db.execute(f'SELECT COUNT(*) AS total FROM Reparaciones r LEFT JOIN Tecnicos t ON r.tecnico_id = t.id {final_where_sql}', final_query_params).fetchone()['total']
@@ -624,7 +629,7 @@ def nueva_reparacion():
         timestamp = datetime.datetime.now().strftime('%d/%m/%Y %H:%M')
         
         if estado_inicial == 'PEND. DE REVISION':
-            fecha_pendiente = timestamp
+            fecha_pendiente = ''
             fecha_en_reparacion = ''
         else:
             fecha_pendiente = timestamp
@@ -891,8 +896,7 @@ def cambiar_estado_rapido(id):
     params = [nuevo_estado, nueva_obs]
 
     if estado_upper == 'PEND. DE REVISION':
-        set_clause += ", fecha_pendiente = ?"
-        params.append(timestamp)
+        pass
     elif estado_upper == 'EN REPARACION':
         set_clause += ", fecha_en_reparacion = ?"
         params.append(timestamp)
@@ -958,9 +962,9 @@ def devolver_reparacion(id):
     
     db.execute('''
         UPDATE Reparaciones 
-        SET tecnico_id = NULL, estado = 'PEND. DE REVISION', fecha_pendiente = ? 
+        SET tecnico_id = NULL, estado = 'PEND. DE REVISION' 
         WHERE id = ?
-    ''', (timestamp, id))
+    ''', (id,))
 
     texto_agregado = f"[{timestamp}] - 🔙 DEVOLUCIÓN DE EQUIPO\nMotivo: {motivo}\n(El sistema desasignó al técnico y volvió el estado a Pendiente de Revisión)"
     
@@ -1212,7 +1216,7 @@ def configuracion():
         LEFT JOIN Tecnicos t ON u.tecnico_id = t.id 
         ORDER BY u.rol, u.username
     ''').fetchall()
-    reparaciones_raw = db.execute('SELECT * FROM Reparaciones ORDER BY id DESC').fetchall()
+    reparaciones_raw = db.execute('SELECT * FROM Reparaciones ORDER BY sortable_date(fecha) DESC, id DESC').fetchall()
     historial_reciente = db.execute('SELECT * FROM Historial ORDER BY fecha DESC LIMIT 15').fetchall()
     os.makedirs('backups', exist_ok=True)
     backups = []
@@ -1572,9 +1576,9 @@ def preview_reparaciones_csv():
                 if not frep and 'REPARADO' in estado: frep = fecha
                 if not fsr and 'SIN REPARACION' in estado: fsr = fecha
                 if not fr and estado == 'EN REPARACION': fr = fecha
-                if not fp and not frep and not fsr and not fr: fp = fecha
+                if not fp and not frep and not fsr and not fr and estado != 'PEND. DE REVISION': fp = fecha
             else:
-                fp = fecha if estado not in ('EN REPARACION',) and 'REPARADO' not in estado and 'SIN REPARACION' not in estado else ''
+                fp = '' if estado == 'PEND. DE REVISION' else (fecha if estado not in ('EN REPARACION',) and 'REPARADO' not in estado and 'SIN REPARACION' not in estado else '')
                 fr = fecha if estado == 'EN REPARACION' else ''
                 frep = fecha if 'REPARADO' in estado else ''
                 fsr = fecha if 'SIN REPARACION' in estado else ''
@@ -1742,11 +1746,11 @@ def cargar_csv():
                 fecha_reparado = normalize_date(get_csv_value(row, 'f. reparado'))
                 fecha_sin_reparacion = normalize_date(get_csv_value(row, 'f. sin rep.'))
                 
-                # FALLBACK: Si no hay fecha específica para el estado actual, usar la fecha de ingreso
+# FALLBACK: Si no hay fecha específica para el estado actual, usar la fecha de ingreso
                 if not fecha_reparado and 'REPARADO' in estado: fecha_reparado = fecha
                 if not fecha_sin_reparacion and 'SIN REPARACION' in estado: fecha_sin_reparacion = fecha
                 if not fecha_en_reparacion and estado == 'EN REPARACION': fecha_en_reparacion = fecha
-                if not fecha_pendiente and not fecha_reparado and not fecha_sin_reparacion and not fecha_en_reparacion:
+                if not fecha_pendiente and not fecha_reparado and not fecha_sin_reparacion and not fecha_en_reparacion and estado != 'PEND. DE REVISION':
                     fecha_pendiente = fecha
             else:
                 fecha_pendiente = ''
@@ -1759,7 +1763,7 @@ def cargar_csv():
                     fecha_sin_reparacion = fecha
                 elif estado == 'EN REPARACION':
                     fecha_en_reparacion = fecha
-                else:
+                elif estado != 'PEND. DE REVISION':
                     fecha_pendiente = fecha
 
             db.execute('''
